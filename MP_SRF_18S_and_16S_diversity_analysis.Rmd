@@ -563,8 +563,16 @@ tb18_ss8522_tax_sorted[1:5,1:5]
 ```{r select_phototrophs, echo=FALSE}
 tb18_phototrophs <- tb18_ss8522_tax_sorted[which(tb18_ss8522_tax_sorted$MAS_plus_BM_plus_SILVA_class != "NA"),]
 dim(tb18_phototrophs)
-tb18_phototrophs[1:5,119]
+tb18_phototrophs[,126:127]
+
+
+tb18_phototrophs_nofill <- tb18_ss8522_tax_sorted[which(tb18_ss8522_tax_sorted$MAS_plus_BM_plus_SILVA_class != "NA" & tb18_ss8522_tax_sorted$MAS_plus_BM_plus_SILVA_class != "Bolidophyceae" & tb18_ss8522_tax_sorted$MAS_plus_BM_plus_SILVA_class != "Chlorarachniophyceae" & tb18_ss8522_tax_sorted$MAS_plus_BM_plus_SILVA_class != "Cryptophyceae" & tb18_ss8522_tax_sorted$MAS_plus_BM_plus_SILVA_class != "Pelagophyceae" & tb18_ss8522_tax_sorted$MAS_plus_BM_plus_SILVA_class != "Rappemonad" & tb18_ss8522_tax_sorted$MAS_plus_BM_plus_SILVA_class != "Chrysophyceae" & tb18_ss8522_tax_sorted$MAS_plus_BM_plus_SILVA_class != "Bacillariophyta" & tb18_ss8522_tax_sorted$MAS_plus_BM_plus_SILVA_class != "Dictyochophyceae" & tb18_ss8522_tax_sorted$MAS_plus_BM_plus_SILVA_class != "Mamiellophyceae" & tb18_ss8522_tax_sorted$MAS_plus_BM_plus_SILVA_class != "Prasinophyceae" & tb18_ss8522_tax_sorted$MAS_plus_BM_plus_SILVA_class != "Prymnesiophyceae" & tb18_ss8522_tax_sorted$MAS_plus_BM_plus_SILVA_class != "Dinophyceae"),]
+
 ```
+
+
+
+
 
 ```{r aggregate, echo=FALSE}
 
@@ -1161,14 +1169,6 @@ class_summary_otus_per_class_16S_order
 #class_summary_reads<-aggregate(sum~class, data=otutab_full_wTax, FUN="sum") 
 # sum reads different groups
 ```
-
-
-
-
-
-
-
-
 
 
 
