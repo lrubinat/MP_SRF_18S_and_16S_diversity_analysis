@@ -43,7 +43,7 @@ row.names(tb18_tax)<-tb18_tax[,1]
 #rownames(otu_tb18) <- 1:nrow(otu_tb18)
 
 tb18_tax<-tb18_tax[,-1]
-tb18_tax[is.na(tb18_tax)]<-0
+tb18_tax[is.na(tb18_tax)]<-"NA"
 
 dim(tb18_tax)
 tb18_tax[1:5,1:5]
@@ -561,21 +561,15 @@ tb18_ss8522_tax_sorted[1:5,1:5]
 ```
 
 ```{r select_phototrophs, echo=FALSE}
-tb18_phototrophs <- tb18_ss8522_tax_sorted[which(tb18_ss8522_tax_sorted$MAS_plus_BM_plus_SILVA_class != "NA"),]
+#tb18_phototrophs <- tb18_ss8522_tax_sorted[which(tb18_ss8522_tax_sorted$MAS_plus_BM_plus_SILVA_class != NA),]
 dim(tb18_phototrophs)
 tb18_phototrophs[,126:127]
 
-
-tb18_phototrophs_nofill <- tb18_ss8522_tax_sorted[which(tb18_ss8522_tax_sorted$MAS_plus_BM_plus_SILVA_class != "NA" & tb18_ss8522_tax_sorted$MAS_plus_BM_plus_SILVA_class != "Bolidophyceae" & tb18_ss8522_tax_sorted$MAS_plus_BM_plus_SILVA_class != "Chlorarachniophyceae" & tb18_ss8522_tax_sorted$MAS_plus_BM_plus_SILVA_class != "Cryptophyceae" & tb18_ss8522_tax_sorted$MAS_plus_BM_plus_SILVA_class != "Pelagophyceae" & tb18_ss8522_tax_sorted$MAS_plus_BM_plus_SILVA_class != "Rappemonad" & tb18_ss8522_tax_sorted$MAS_plus_BM_plus_SILVA_class != "Chrysophyceae" & tb18_ss8522_tax_sorted$MAS_plus_BM_plus_SILVA_class != "Bacillariophyta" & tb18_ss8522_tax_sorted$MAS_plus_BM_plus_SILVA_class != "Dictyochophyceae" & tb18_ss8522_tax_sorted$MAS_plus_BM_plus_SILVA_class != "Mamiellophyceae" & tb18_ss8522_tax_sorted$MAS_plus_BM_plus_SILVA_class != "Prasinophyceae" & tb18_ss8522_tax_sorted$MAS_plus_BM_plus_SILVA_class != "Prymnesiophyceae" & tb18_ss8522_tax_sorted$MAS_plus_BM_plus_SILVA_class != "Dinophyceae"),]
-
+# [TEMPORARY EDITION] for some reason, the taxonomic classification of "OTU_2485" is not properly parsed. As it is not classified as a phototroph anyway, by now let's get rid of it by excluding empty cells (""). 
+tb18_phototrophs <- tb18_ss8522_tax_sorted[which(tb18_ss8522_tax_sorted$MAS_plus_BM_plus_SILVA_class != "" & tb18_ss8522_tax_sorted$MAS_plus_BM_plus_SILVA_class != "NA"),]
 ```
 
-
-
-
-
 ```{r aggregate, echo=FALSE}
-
 class_summary_reads_per_class<-aggregate(rowSums(tb18_phototrophs[1:119]), list(tb18_phototrophs$MAS_plus_BM_plus_SILVA_class), sum)
 # count the different groups
 
