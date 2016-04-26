@@ -678,34 +678,35 @@ colnames(class_summary_otus_per_class_order)<-c("OTUs_per_class")
 ```
 
 ```{r create_table_merging_#OTUs_#reads_#samples, echo=FALSE}
-tb18S_OTUs_reads_sample <- merge(class_summary_reads_per_class_order, class_summary_otus_per_class_order, by="row.names")
+tb18S_OTUs_reads_samples <- merge(class_summary_reads_per_class_order, class_summary_otus_per_class_order, by="row.names")
 
-row.names(tb18S_OTUs_reads_sample)<-tb18S_OTUs_reads_sample[,1]
-tb18S_OTUs_reads_sample<-tb18S_OTUs_reads_sample[,-1]
-colnames(tb18S_OTUs_reads_sample)<-c("reads_per_class","OTUs_per_class")
-tb18S_OTUs_reads_sample[1:5,1:2]
+row.names(tb18S_OTUs_reads_samples)<-tb18S_OTUs_reads_samples[,1]
+tb18S_OTUs_reads_samples<-tb18S_OTUs_reads_samples[,-1]
+colnames(tb18S_OTUs_reads_samples)<-c("reads_per_class","OTUs_per_class")
+tb18S_OTUs_reads_samples[1:5,1:2]
 
-#sort
-# SORT tb18S_OTUs_reads_sample<-tb18_ss8522_abundant[order(tb18_ss8522_abundant$mean_rabund, tb18_ss8522_abundant$perc_occur, decreasing = T), c(1,2)]
+tb18S_OTUs_reads_samples<-tb18S_OTUs_reads_samples[order(tb18S_OTUs_reads_samples$reads_per_class, tb18S_OTUs_reads_samples$OTUs_per_class, decreasing = T), c(1,2)]
 
 #add no. of samples per class
-tb18S_OTUs_reads_sample["samples_per_class"] <- NA
-tb18S_OTUs_reads_sample$samples_per_class<-c()
+tb18S_OTUs_reads_samples["samples_per_class"] <- NA
+tb18S_OTUs_reads_samples$samples_per_class<-c(119,119,119,112,117,96,91,103,102,92,44,33,13,36,17,27,5)
 ```
 
+```{r stations_vs_OTUs_plot, echo=FALSE}
+library(ggplot2)
 
-
+p <- ggplot(tb18S_OTUs_reads_samples, aes(samples_per_class,OTUs_per_class))
+p + geom_point()
+otus_vs_samples_plot <- ggplot(tb18S_OTUs_reads_samples, aes(samples_per_class,OTUs_per_class, label = rownames(tb18S_OTUs_reads_samples)))
+otus_vs_samples_plot + geom_point() + geom_text(check_overlap = TRUE,hjust = 0, nudge_x = 0.05)
+```
 
 ```{r OTUs_vs_reads_plot, echo=FALSE}
-png("otus_vs_reads.png")
-
-plot(class_summary_otus_per_class_order, class_summary_reads_per_class_order, pch=19, cex=0.4, xlab="Number of OTUs", ylab="Number of reads", main = "#OTUs vs #reads")
-
-with(class_summary_otus_per_class_order[1:17,], text(x~x,labels = row.names(class_summary_otus_per_class_order[1:17,]), pos = 4))
-
-dev.off()
+p2 <- ggplot(tb18S_OTUs_reads_samples, aes(OTUs_per_class, reads_per_class))
+p2 + geom_point()
+otus_vs_samples_plot <- ggplot(tb18S_OTUs_reads_samples, aes(OTUs_per_class, reads_per_class, label = rownames(tb18S_OTUs_reads_samples)))
+otus_vs_samples_plot + geom_point() + geom_text(check_overlap = TRUE,hjust = 0, nudge_x = 0.05)
 ```
-
 
 
 # 2) 16S amplicons
@@ -751,7 +752,6 @@ amplicons_per_sample_tb16[which(colSums(tb16_tax_occur)<5844)]
 #remove samples with less than 5844 reads
 tb16_tax_occur_min5844 <- tb16_tax_occur[,colSums(tb16_tax_occur) >= 5844]
 dim(tb16_tax_occur_min5844)
-
 
 #remove samples with omitted in MP_SRF_16S_amplicons_tax dataset (so that we can compare the relative abundance of 16S and 16S OTUs considering the same samples)
 tb16_tax_occur_min5844<-subset(tb16_tax_occur_min5844, select=-c(st054))
