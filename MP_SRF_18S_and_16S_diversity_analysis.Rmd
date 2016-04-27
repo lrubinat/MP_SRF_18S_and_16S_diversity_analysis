@@ -565,7 +565,6 @@ tb18_ss8522_tax_sorted[1:5,1:5]
 tb18_phototrophs <- tb18_ss8522_tax_sorted[which(tb18_ss8522_tax_sorted$MAS_plus_BM_plus_SILVA_class != "" & tb18_ss8522_tax_sorted$MAS_plus_BM_plus_SILVA_class != "NA"),]
 
 dim(tb18_phototrophs)
-tb18_phototrophs[,126:127]
 ```
 
 ```{r count_samples_per_group, echo=FALSE}
@@ -692,21 +691,45 @@ tb18S_OTUs_reads_samples["samples_per_class"] <- NA
 tb18S_OTUs_reads_samples$samples_per_class<-c(119,119,119,112,117,96,91,103,102,92,44,33,13,36,17,27,5)
 ```
 
-```{r stations_vs_OTUs_plot, echo=FALSE}
+[PLOT DESCRIPTION]
+
+```{r stations_vs_OTUs, echo=FALSE}
 library(ggplot2)
 
-p <- ggplot(tb18S_OTUs_reads_samples, aes(samples_per_class,OTUs_per_class))
-p + geom_point()
+#p <- ggplot(tb18S_OTUs_reads_samples, aes(samples_per_class,OTUs_per_class))
+#p + geom_point()
 otus_vs_samples_plot <- ggplot(tb18S_OTUs_reads_samples, aes(samples_per_class,OTUs_per_class, label = rownames(tb18S_OTUs_reads_samples)))
-otus_vs_samples_plot + geom_point() + geom_text(check_overlap = TRUE,hjust = 0, nudge_x = 0.05)
+otus_vs_samples_plot + geom_point() + geom_text(check_overlap = TRUE,hjust = -0.05, nudge_y = 0.05, size = 5) + scale_x_continuous(limits = c(0, 150)) + labs(title="#samples vs #OTUs", x="samples", y="OTUs")
 ```
 
-```{r OTUs_vs_reads_plot, echo=FALSE}
-p2 <- ggplot(tb18S_OTUs_reads_samples, aes(OTUs_per_class, reads_per_class))
-p2 + geom_point()
-otus_vs_samples_plot <- ggplot(tb18S_OTUs_reads_samples, aes(OTUs_per_class, reads_per_class, label = rownames(tb18S_OTUs_reads_samples)))
-otus_vs_samples_plot + geom_point() + geom_text(check_overlap = TRUE,hjust = 0, nudge_x = 0.05)
+Let's exclude Dinophyceae from the table so that the rest of the groups are easiest to compare. [PLOT DESCRIPTION]
+
+```{r stations_vs_OTUs_without_Dinos, echo=FALSE}
+tb18S_OTUs_reads_samples_without_Dinos <- tb18S_OTUs_reads_samples[-1,]
+#p <- ggplot(tb18S_OTUs_reads_samples_without_Dinos, aes(samples_per_class,OTUs_per_class))
+#p + geom_point()
+otus_vs_samples_plot <- ggplot(tb18S_OTUs_reads_samples_without_Dinos, aes(samples_per_class,OTUs_per_class, label = rownames(tb18S_OTUs_reads_samples_without_Dinos)))
+otus_vs_samples_plot + geom_point() + geom_text(check_overlap = TRUE,hjust = -0.05, nudge_y = 0.05, size = 5) + scale_x_continuous(limits = c(0, 150)) + labs(title="#samples vs #OTUs", x="samples", y="OTUs")
 ```
+
+[PLOT DESCRIPTION]
+
+```{r OTUs_vs_reads, echo=FALSE}
+#p2 <- ggplot(tb18S_OTUs_reads_samples, aes(OTUs_per_class, reads_per_class))
+#p2 + geom_point()
+otus_vs_samples_plot <- ggplot(tb18S_OTUs_reads_samples, aes(OTUs_per_class, reads_per_class, label = rownames(tb18S_OTUs_reads_samples)))
+otus_vs_samples_plot + geom_point() + geom_text(check_overlap = TRUE,hjust = -0.05, nudge_x = 0.05) + scale_x_continuous(limits = c(0, 8000)) + labs(title="#OTUs vs #reads", x="OTUs", y="reads")
+```
+
+Again, let's plot the ratio between OTUs and reads per sample without Dinophyceae. [PLOT DESCRIPTION]
+
+```{r OTUs_vs_reads_without_Dinos, echo=FALSE}
+#p2 <- ggplot(tb18S_OTUs_reads_samples_without_Dinos, aes(OTUs_per_class, reads_per_class))
+#p2 + geom_point()
+otus_vs_samples_plot <- ggplot(tb18S_OTUs_reads_samples_without_Dinos, aes(OTUs_per_class, reads_per_class, label = rownames(tb18S_OTUs_reads_samples_without_Dinos)))
+otus_vs_samples_plot + geom_point() + geom_text(check_overlap = TRUE,hjust = -0.05, nudge_x = 0.05) + scale_x_continuous(limits = c(0, 350)) + labs(title="#OTUs vs #reads", x="OTUs", y="reads")
+```
+
 
 
 # 2) 16S amplicons
@@ -1218,13 +1241,12 @@ dim(tb16_tax_occur_min5844)
 
 Let's add the taxonomic classification to the left OTUs by merging "tb16_tax_occur_ss5844_no_cero" with "tb16_tax".
 
-```{r merge_tables_2_16S, echo=FALSE}
+```{r merge_tables_16S, echo=FALSE}
 tb16_tax_occur_ss5844_no_cero_t<-t(tb16_tax_occur_ss5844_no_cero)
 tb16_ss5844_tax<-merge(tb16_tax_occur_ss5844_no_cero_t,tb16_class, by="row.names")
 
 dim(tb16_ss5844_tax)
 tb16_ss5844_tax[1:5,1:5]
-colSums(tb16_ss5844_tax[,2:120])
 
 #fix OTU_no as new row
 rownames(tb16_ss5844_tax)=tb16_ss5844_tax$Row.names
@@ -1247,7 +1269,7 @@ dim(tb16_ss5844_tax_sorted)
 tb16_ss5844_tax_sorted[1:5,124:125]
 ```
 
-```{r select_phototrophs_2_16S, echo=FALSE}
+```{r select_phototrophs_16S, echo=FALSE}
 tb16_bacteria <- tb16_ss5844_tax_sorted[which(tb16_ss5844_tax_sorted$taxonomic_classes != "Bolidophyceae" & tb16_ss5844_tax_sorted$taxonomic_classes != "Chlorarachniophyceae" & tb16_ss5844_tax_sorted$taxonomic_classes != "Cryptophyceae" & tb16_ss5844_tax_sorted$taxonomic_classes != "Pelagophyceae" & tb16_ss5844_tax_sorted$taxonomic_classes != "Rappemonad" & tb16_ss5844_tax_sorted$taxonomic_classes != "Chrysophyceae" & tb16_ss5844_tax_sorted$taxonomic_classes != "Bacillariophyta" & tb16_ss5844_tax_sorted$taxonomic_classes != "Dictyochophyceae" & tb16_ss5844_tax_sorted$taxonomic_classes != "Mamiellophyceae" & tb16_ss5844_tax_sorted$taxonomic_classes != "Prasinophyceae" & tb16_ss5844_tax_sorted$taxonomic_classes != "Prymnesiophyceae" & tb16_ss5844_tax_sorted$taxonomic_classes != "other_plastids"),]
 
 tb16_protists <- tb16_ss5844_tax_sorted[which(tb16_ss5844_tax_sorted$taxonomic_classes != "bacteria" & tb16_ss5844_tax_sorted$taxonomic_classes != "other_cyanob" & tb16_ss5844_tax_sorted$taxonomic_classes != "Prochlorococcus" & tb16_ss5844_tax_sorted$taxonomic_classes != "Synechococcus"),]
@@ -1258,7 +1280,7 @@ tb16_protists[1:5,119:125]
 tb16_bacteria[1:5,124:125]
 ```
 
-```{r aggregate_2_16S, echo=TRUE}
+```{r aggregate_16S, echo=TRUE}
 
 class_summary_reads_per_class_16S<-aggregate(rowSums(tb16_protists[1:119]), list(tb16_protists$taxonomic_classes), sum)
 # count the different groups
@@ -1274,12 +1296,132 @@ attach(class_summary_otus_per_class_16S)
 class_summary_otus_per_class_16S_order<-class_summary_otus_per_class_16S[order(-x),]
 detach(class_summary_otus_per_class_16S)
 class_summary_otus_per_class_16S_order
+```
 
+
+
+```{r count_samples_per_group, echo=FALSE}
+#create a table per group and count in how many samples they occur. 
+Dinophyceae_tb <- tb18_phototrophs[which(tb18_phototrophs$MAS_plus_BM_plus_SILVA_class == "Dinophyceae"),]
+Dinophyceae_tb[1:5,1:5]
+Dinophyceae_tb_occur <- Dinophyceae_tb[,1:119]
+Dinophyceae_tb_occur[1:5,1:5]
+dim(Dinophyceae_tb_occur)
+
+length(Dinophyceae_tb_occur[,colSums(Dinophyceae_tb_occur) > 0])
+#Dinophyceae_tb_samples <- Dinophyceae_tb_occur[,colSums(Dinophyceae_tb_occur) > 0]
+#length(Dinophyceae_tb_samples[which(colSums(Dinophyceae_tb_occur) != 0)])
+
+Prasinophyceae_tb <- tb18_phototrophs[which(tb18_phototrophs$MAS_plus_BM_plus_SILVA_class == "Prasinophyceae"),]
+Prasinophyceae_tb_occur <- Prasinophyceae_tb[,1:119]
+length(Prasinophyceae_tb_occur[,colSums(Prasinophyceae_tb_occur) > 0])
+
+Chrysophyceae_tb <- tb18_phototrophs[which(tb18_phototrophs$MAS_plus_BM_plus_SILVA_class == "Chrysophyceae"),]
+Chrysophyceae_tb_occur <- Chrysophyceae_tb[,1:119]
+length(Chrysophyceae_tb_occur[,colSums(Chrysophyceae_tb_occur) > 0])
+
+Pelagophyceae_tb <- tb18_phototrophs[which(tb18_phototrophs$MAS_plus_BM_plus_SILVA_class == "Pelagophyceae"),]
+Pelagophyceae_tb_occur <- Pelagophyceae_tb[,1:119]
+length(Pelagophyceae_tb_occur[,colSums(Pelagophyceae_tb_occur) > 0])
+
+Dictyochophyceae_tb <- tb18_phototrophs[which(tb18_phototrophs$MAS_plus_BM_plus_SILVA_class == "Dictyochophyceae"),]
+Dictyochophyceae_tb_occur <- Dictyochophyceae_tb[,1:119]
+length(Dictyochophyceae_tb_occur[,colSums(Dictyochophyceae_tb_occur) > 0])
+
+Cryptomonadales_tb <- tb18_phototrophs[which(tb18_phototrophs$MAS_plus_BM_plus_SILVA_class == "Cryptomonadales"),]
+Cryptomonadales_tb_occur <- Cryptomonadales_tb[,1:119]
+length(Cryptomonadales_tb_occur[,colSums(Cryptomonadales_tb_occur) > 0])
+
+Bacillariophyta_tb <- tb18_phototrophs[which(tb18_phototrophs$MAS_plus_BM_plus_SILVA_class == "Bacillariophyta"),]
+Bacillariophyta_tb_occur <- Bacillariophyta_tb[,1:119]
+length(Bacillariophyta_tb_occur[,colSums(Bacillariophyta_tb_occur) > 0])
+
+Chlorarachniophyta_tb <- tb18_phototrophs[which(tb18_phototrophs$MAS_plus_BM_plus_SILVA_class == "Chlorarachniophyta"),]
+Chlorarachniophyta_tb_occur <- Chlorarachniophyta_tb[,1:119]
+length(Chlorarachniophyta_tb_occur[,colSums(Chlorarachniophyta_tb_occur) > 0])
+
+Bolidophyceae_tb <- tb18_phototrophs[which(tb18_phototrophs$MAS_plus_BM_plus_SILVA_class == "Bolidophyceae"),]
+Bolidophyceae_tb_occur <- Bolidophyceae_tb[,1:119]
+length(Bolidophyceae_tb_occur[,colSums(Bolidophyceae_tb_occur) > 0])
+
+Pinguiochysidales_tb <- tb18_phototrophs[which(tb18_phototrophs$MAS_plus_BM_plus_SILVA_class == "Pinguiochysidales"),]
+Pinguiochysidales_tb_occur <- Pinguiochysidales_tb[,1:119]
+length(Pinguiochysidales_tb_occur[,colSums(Pinguiochysidales_tb_occur) > 0])
+
+Prymnesiophyceae_tb <- tb18_phototrophs[which(tb18_phototrophs$MAS_plus_BM_plus_SILVA_class == "Prymnesiophyceae"),]
+Prymnesiophyceae_tb_occur <- Prymnesiophyceae_tb[,1:119]
+length(Prymnesiophyceae_tb_occur[,colSums(Prymnesiophyceae_tb_occur) > 0])
+
+Mamiellophyceae_tb <- tb18_phototrophs[which(tb18_phototrophs$MAS_plus_BM_plus_SILVA_class == "Mamiellophyceae"),]
+Mamiellophyceae_tb_occur <- Mamiellophyceae_tb[,1:119]
+length(Mamiellophyceae_tb_occur[,colSums(Mamiellophyceae_tb_occur) > 0])
+
+Eustigmatales_tb <- tb18_phototrophs[which(tb18_phototrophs$MAS_plus_BM_plus_SILVA_class == "Eustigmatales"),]
+Eustigmatales_tb_occur <- Eustigmatales_tb[,1:119]
+length(Eustigmatales_tb_occur[,colSums(Eustigmatales_tb_occur) > 0])
+
+Chlorophyceae_tb <- tb18_phototrophs[which(tb18_phototrophs$MAS_plus_BM_plus_SILVA_class == "Chlorophyceae"),]
+Chlorophyceae_tb_occur <- Chlorophyceae_tb[,1:119]
+length(Chlorophyceae_tb_occur[,colSums(Chlorophyceae_tb_occur) > 0])
+
+Ulvophyceae_tb <- tb18_phototrophs[which(tb18_phototrophs$MAS_plus_BM_plus_SILVA_class == "Ulvophyceae"),]
+Ulvophyceae_tb_occur <- Ulvophyceae_tb[,1:119]
+length(Ulvophyceae_tb_occur[,colSums(Ulvophyceae_tb_occur) > 0])
+
+Raphydophyceae_tb <- tb18_phototrophs[which(tb18_phototrophs$MAS_plus_BM_plus_SILVA_class == "Raphydophyceae"),]
+Raphydophyceae_tb_occur <- Raphydophyceae_tb[,1:119]
+length(Raphydophyceae_tb_occur[,colSums(Raphydophyceae_tb_occur) > 0])
+
+Trebouxiophyceae_tb <- tb18_phototrophs[which(tb18_phototrophs$MAS_plus_BM_plus_SILVA_class == "Trebouxiophyceae"),]
+Trebouxiophyceae_tb_occur <- Trebouxiophyceae_tb[,1:119]
+write.table(Trebouxiophyceae_tb_occur, "Trebouxiophyceae_tb_occur.txt", sep = "\t")
+length(Trebouxiophyceae_tb_occur[,colSums(Trebouxiophyceae_tb_occur) > 0])
+```
+
+```{r aggregate, echo=FALSE}
+class_summary_reads_per_class<-aggregate(rowSums(tb18_phototrophs[1:119]), list(tb18_phototrophs$MAS_plus_BM_plus_SILVA_class), sum)
+# count the different groups
+
+class_summary_otus_per_class<-aggregate(rowSums(tb18_phototrophs[1:119]), list(tb18_phototrophs$MAS_plus_BM_plus_SILVA_class), length)
+
+## READS PER CLASS ##
+attach(class_summary_reads_per_class)
+class_summary_reads_per_class_order<-class_summary_reads_per_class[order(-x),]
+detach(class_summary_reads_per_class)
+class_summary_reads_per_class_order
+
+#fix column names
+row.names(class_summary_reads_per_class_order)<-class_summary_reads_per_class_order[,1]
+class_summary_reads_per_class_order<-class_summary_reads_per_class_order[c(-1)]
+colnames(class_summary_reads_per_class_order)<-c("Reads_per_class")
+
+## OTUs PER CLASS ##
+attach(class_summary_otus_per_class)
+class_summary_otus_per_class_order<-class_summary_otus_per_class[order(-x),]
+detach(class_summary_otus_per_class)
+class_summary_otus_per_class_order
+
+row.names(class_summary_otus_per_class_order)<-class_summary_otus_per_class_order[,1]
+class_summary_otus_per_class_order<-class_summary_otus_per_class_order[c(-1)]
+colnames(class_summary_otus_per_class_order)<-c("OTUs_per_class")
 
 #class_summary_reads<-aggregate(sum~class, data=otutab_full_wTax, FUN="sum") 
 # sum reads different groups
 ```
 
+```{r create_table_merging_#OTUs_#reads_#samples, echo=FALSE}
+tb18S_OTUs_reads_samples <- merge(class_summary_reads_per_class_order, class_summary_otus_per_class_order, by="row.names")
 
+row.names(tb18S_OTUs_reads_samples)<-tb18S_OTUs_reads_samples[,1]
+tb18S_OTUs_reads_samples<-tb18S_OTUs_reads_samples[,-1]
+colnames(tb18S_OTUs_reads_samples)<-c("reads_per_class","OTUs_per_class")
+tb18S_OTUs_reads_samples[1:5,1:2]
+
+tb18S_OTUs_reads_samples<-tb18S_OTUs_reads_samples[order(tb18S_OTUs_reads_samples$reads_per_class, tb18S_OTUs_reads_samples$OTUs_per_class, decreasing = T), c(1,2)]
+
+#add no. of samples per class
+tb18S_OTUs_reads_samples["samples_per_class"] <- NA
+tb18S_OTUs_reads_samples$samples_per_class<-c(119,119,119,112,117,96,91,103,102,92,44,33,13,36,17,27,5)
+```
 
 

@@ -47,8 +47,8 @@ percentage_cosmopolitan
 rare_OTUs	<	>	$	&	dim	otu_tb18_ss8522_rabund_percoccur
 otu_col_chech	dim	otu_tb18_ss8522_rabund_percoccur	tb18_tax_occur_min8522
 merge_tables	[<-	$	$<-	as.character	as.numeric	dim	merge	order	rownames	rownames<-	sapply	strsplit	t	tb18_class	tb18_tax_occur_ss8522_no_cero
-select_phototrophs	!=	$	dim	tb18_ss8522_tax_sorted	which
-aggregate	$	aggregate	attach	detach	length	list	order	rowSums	sum	tb18_phototrophs	x
+select_phototrophs	!=	$	&	dim	tb18_ss8522_tax_sorted	which
+aggregate	$	aggregate	attach	c	colnames<-	detach	length	list	order	row.names<-	rowSums	sum	tb18_phototrophs	x
 load_data_16S	<	>=	[<-	c	colSums	dim	is.na	read.table	row.names<-	st054	subset	which
 starting_dataset_16S	dim	tb16_tax_occur_min5844
 reads_per_sample_overview1_16S	colSums	min	tb16_tax_occur_min5844
@@ -100,3 +100,9 @@ otu_col_chech_16S	dim	otu_tb16_ss5844_rabund_percoccur	tb16_tax_occur_min5844
 merge_tables_2_16S	[<-	$	$<-	as.character	as.numeric	colSums	dim	merge	order	rownames	rownames<-	sapply	strsplit	t	tb16_class	tb16_tax_occur_ss5844_no_cero
 select_phototrophs_2_16S	!=	$	&	dim	tb16_ss5844_tax_sorted	which
 aggregate_2_16S	$	aggregate	attach	detach	length	list	order	rowSums	sum	tb16_protists	x
+count_samples_per_group	==	>	$	colSums	dim	length	tb18_phototrophs	which	write.table
+create_table_merging_#OTUs_#reads_#samples	[<-	$	$<-	c	class_summary_otus_per_class_order	class_summary_reads_per_class_order	colnames<-	merge	order	row.names<-	T
+stations_vs_OTUs	aes	c	geom_point	geom_text	ggplot	labs	library	OTUs_per_class	rownames	samples_per_class	scale_x_continuous	tb18S_OTUs_reads_samples
+stations_vs_OTUs_without_Dinos	aes	c	geom_point	geom_text	ggplot	labs	OTUs_per_class	rownames	samples_per_class	scale_x_continuous	tb18S_OTUs_reads_samples
+OTUs_vs_reads	aes	c	geom_point	geom_text	ggplot	labs	OTUs_per_class	reads_per_class	rownames	scale_x_continuous	tb18S_OTUs_reads_samples
+OTUs_vs_reads_without_Dinos	aes	c	geom_point	geom_text	ggplot	labs	OTUs_per_class	reads_per_class	rownames	scale_x_continuous	tb18S_OTUs_reads_samples_without_Dinos
