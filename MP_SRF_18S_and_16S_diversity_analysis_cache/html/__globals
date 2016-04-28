@@ -48,7 +48,13 @@ rare_OTUs	<	>	$	&	dim	otu_tb18_ss8522_rabund_percoccur
 otu_col_chech	dim	otu_tb18_ss8522_rabund_percoccur	tb18_tax_occur_min8522
 merge_tables	[<-	$	$<-	as.character	as.numeric	dim	merge	order	rownames	rownames<-	sapply	strsplit	t	tb18_class	tb18_tax_occur_ss8522_no_cero
 select_phototrophs	!=	$	&	dim	tb18_ss8522_tax_sorted	which
+count_samples_per_group	==	>	$	colSums	dim	length	tb18_phototrophs	which	write.table
 aggregate	$	aggregate	attach	c	colnames<-	detach	length	list	order	row.names<-	rowSums	sum	tb18_phototrophs	x
+create_table_merging_#OTUs_#reads_#samples	[<-	$	$<-	c	class_summary_otus_per_class_order	class_summary_reads_per_class_order	colnames<-	merge	order	row.names<-	T
+stations_vs_OTUs	aes	c	geom_point	geom_text	ggplot	labs	library	OTUs_per_class	rownames	samples_per_class	scale_x_continuous	tb18S_OTUs_reads_samples
+stations_vs_OTUs_without_Dinos	aes	c	geom_point	geom_text	ggplot	labs	OTUs_per_class	rownames	samples_per_class	scale_x_continuous	tb18S_OTUs_reads_samples
+OTUs_vs_reads	aes	c	geom_point	geom_text	ggplot	labs	OTUs_per_class	reads_per_class	rownames	scale_x_continuous	tb18S_OTUs_reads_samples
+OTUs_vs_reads_without_Dinos	aes	c	geom_point	geom_text	ggplot	labs	OTUs_per_class	reads_per_class	rownames	scale_x_continuous	tb18S_OTUs_reads_samples_without_Dinos
 load_data_16S	<	>=	[<-	c	colSums	dim	is.na	read.table	row.names<-	st054	subset	which
 starting_dataset_16S	dim	tb16_tax_occur_min5844
 reads_per_sample_overview1_16S	colSums	min	tb16_tax_occur_min5844
@@ -97,12 +103,18 @@ select_cosmopolitan_16S	>	$	c	dim	order	otu_tb16_ss5844_rabund_percoccur	T
 percentage_cosmopolitan_16S	
 rare_OTUs_16S	<	>	$	&	dim	otu_tb16_ss5844_rabund_percoccur
 otu_col_chech_16S	dim	otu_tb16_ss5844_rabund_percoccur	tb16_tax_occur_min5844
-merge_tables_2_16S	[<-	$	$<-	as.character	as.numeric	colSums	dim	merge	order	rownames	rownames<-	sapply	strsplit	t	tb16_class	tb16_tax_occur_ss5844_no_cero
-select_phototrophs_2_16S	!=	$	&	dim	tb16_ss5844_tax_sorted	which
-aggregate_2_16S	$	aggregate	attach	detach	length	list	order	rowSums	sum	tb16_protists	x
-count_samples_per_group	==	>	$	colSums	dim	length	tb18_phototrophs	which	write.table
-create_table_merging_#OTUs_#reads_#samples	[<-	$	$<-	c	class_summary_otus_per_class_order	class_summary_reads_per_class_order	colnames<-	merge	order	row.names<-	T
-stations_vs_OTUs	aes	c	geom_point	geom_text	ggplot	labs	library	OTUs_per_class	rownames	samples_per_class	scale_x_continuous	tb18S_OTUs_reads_samples
-stations_vs_OTUs_without_Dinos	aes	c	geom_point	geom_text	ggplot	labs	OTUs_per_class	rownames	samples_per_class	scale_x_continuous	tb18S_OTUs_reads_samples
-OTUs_vs_reads	aes	c	geom_point	geom_text	ggplot	labs	OTUs_per_class	reads_per_class	rownames	scale_x_continuous	tb18S_OTUs_reads_samples
-OTUs_vs_reads_without_Dinos	aes	c	geom_point	geom_text	ggplot	labs	OTUs_per_class	reads_per_class	rownames	scale_x_continuous	tb18S_OTUs_reads_samples_without_Dinos
+merge_tables_16S	[<-	$	$<-	as.character	as.numeric	dim	merge	order	rownames	rownames<-	sapply	strsplit	t	tb16_class	tb16_tax_occur_ss5844_no_cero
+select_phototrophs_16S2	!=	$	&	dim	tb16_ss5844_tax_sorted	which
+aggregate_16S_protists	$	aggregate	attach	c	colnames<-	detach	length	list	order	row.names<-	rowSums	sum	tb16_protists	x
+aggregate_16S_bacteria	$	aggregate	attach	c	colnames<-	detach	length	list	order	row.names<-	rowSums	sum	tb16_bacteria	x
+count_samples_per_group_16S_protists	==	>	$	colSums	dim	length	tb16_protists	which
+count_samples_per_group_16S_bacteria	==	>	$	colSums	length	tb16_bacteria	which
+create_table_merging_#OTUs_#reads_#samples_protists	[<-	$	$<-	c	class_summary_otus_per_class_16S_protists_order	class_summary_reads_per_class_16S_protists_order	colnames<-	merge	order	row.names<-	T
+create_table_merging_#OTUs_#reads_#samples_bacteria	[<-	$	$<-	c	class_summary_otus_per_class_16S_bacteria_order	class_summary_reads_per_class_16S_bacteria_order	colnames<-	merge	order	row.names<-	T
+stations_vs_OTUs_protists	aes	c	geom_point	geom_text	ggplot	labs	OTUs_per_class	rownames	samples_per_class	scale_x_continuous	tb16S_protists_OTUs_reads_samples
+OTUs_vs_reads_protists	aes	c	geom_point	geom_text	ggplot	labs	OTUs_per_class	reads_per_class	rownames	scale_x_continuous	tb16S_protists_OTUs_reads_samples
+stations_vs_OTUs_bacteria	aes	c	geom_point	geom_text	ggplot	labs	OTUs_per_class	rownames	samples_per_class	scale_x_continuous	tb16S_bacteria_OTUs_reads_samples
+OTUs_vs_reads_bacteria	aes	c	geom_point	geom_text	ggplot	labs	OTUs_per_class	reads_per_class	rownames	scale_x_continuous	tb16S_bacteria_OTUs_reads_samples
+merge_protists_and_bacteria_tb	rbind	tb16S_bacteria_OTUs_reads_samples	tb16S_protists_OTUs_reads_samples
+stations_vs_OTUs_protists_plus_bacteria	aes	c	geom_point	geom_text	ggplot	labs	OTUs_per_class	rownames	samples_per_class	scale_x_continuous	tb16S_protists_plus_bacteria_OTUs_reads_samples
+OTUs_vs_reads_protists_plus_bacteria	aes	c	geom_point	geom_text	ggplot	labs	OTUs_per_class	reads_per_class	rownames	scale_x_continuous	tb16S_protists_plus_bacteria_OTUs_reads_samples
