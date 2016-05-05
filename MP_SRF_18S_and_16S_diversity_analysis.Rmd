@@ -33,7 +33,7 @@ setwd("/home/laura/Documents/TFM/genwork/data_analysis/MP_SRF_18S_and_16S_divers
 tb18_tax <- read.table(file="/home/laura/Documents/TFM/home/data/MALASPINA/Malaspina_18S_Surface/table_with_BLAST/MP_18S_SRF_MAS_BM_SILVA_classif_tab_filtered.txt", head=TRUE, fill=TRUE)
 
 #table dimensions and format before setting column names
-dim(tb18_tax) # 47144   132
+dim(tb18_tax) # 47144   130
 tb18_tax[1:5,1:5]
 
 #row names = OTU name (option A)
@@ -49,13 +49,13 @@ dim(tb18_tax)
 tb18_tax[1:5,1:5]
 
 #table with taxonomi classification alone
-tb18_class <- tb18_tax[,125:131]
+tb18_class <- tb18_tax[,123:129]
 dim(tb18_class)
 tb18_class[1:5,1:7]
 
 #table with occurence data alone
-tb18_tax_occur <- tb18_tax[, 1:124]
-dim(tb18_tax_occur) # 47144   124
+tb18_tax_occur <- tb18_tax[,1:122]
+dim(tb18_tax_occur) # 47144   122
 tb18_tax_occur[1:5,1:5]
 
 amplicons_per_sample_tb18<-colSums(tb18_tax_occur)
@@ -66,9 +66,13 @@ amplicons_per_sample_tb18[which(colSums(tb18_tax_occur)<8522)]
 tb18_tax_occur_min8522 <- tb18_tax_occur[,colSums(tb18_tax_occur) >= 8522]
 dim(tb18_tax_occur_min8522)
 
-#remove samples with omitted in MP_SRF_18S_amplicons_tax dataset (so that we can compare the relative abundance of 16S and 18S OTUs considering the same samples)
+#remove samples with omitted in 16S dataset (so that we can compare the relative abundance of 16S and 18S OTUs considering the same samples)
 tb18_tax_occur_min8522<-subset(tb18_tax_occur_min8522, select=-c(st122, st124, st137, st144))
-dim(tb18_tax_occur_min8522) #47144   119
+dim(tb18_tax_occur_min8522) #47144   117
+
+
+tb18_tax_occur_min8522_no_cero<-tb18_tax_occur_min8522[,-(which(colSums(tb18_tax_occur_min8522)==0))]
+dim(tb18_tax_occur_min8522_no_cero)
 ```
 
 Table dimensions and content outline:
@@ -135,20 +139,20 @@ Let's check out how many OTUs don't appear in the new table:
 length(which(colSums(tb18_tax_occur_ss8522)==0)) 
 ```
 
-There are 20237 OTUs that don't show any occurrence in the normalized data. Let's remove them from the table and take a look at its final dimensions:
+There are 20487 OTUs that don't show any occurrence in the normalized data. Let's remove them from the table and take a look at its final dimensions:
 
 ```{r species_richness_rarefaction5, echo=1:3}
 tb18_tax_occur_ss8522_no_cero<-tb18_tax_occur_ss8522[,-(which(colSums(tb18_tax_occur_ss8522)==0))]
 dim(tb18_tax_occur_ss8522_no_cero)
 
-#the final dimensions of the normalized table are 119 26907.
-#26907 + 20237 = 47144
+#the final dimensions of the normalized table are 117 26657.
+#26657 + 20487 = 47144
 ```
 
 Datasets summary:
-dim(tb18_tax) --> 47144   131
-dim(tb18_tax_occur) --> 47144   124
-dim(tb18_tax_occur_ss8522_no_cero) --> 119 26907
+dim(tb18_tax) --> 47144   129
+dim(tb18_tax_occur) --> 47144   122
+dim(tb18_tax_occur_ss8522_no_cero) --> 117 26657
 
 
 
@@ -699,7 +703,7 @@ library(ggplot2)
 #p <- ggplot(tb18S_OTUs_reads_samples, aes(samples_per_class,OTUs_per_class))
 #p + geom_point()
 otus_vs_samples_plot <- ggplot(tb18S_OTUs_reads_samples, aes(samples_per_class,OTUs_per_class, label = rownames(tb18S_OTUs_reads_samples)))
-otus_vs_samples_plot + geom_point() + geom_text(check_overlap = TRUE,hjust = -0.05, nudge_y = 0.05, size = 5) + scale_x_continuous(limits = c(0, 150)) + labs(title="[tb1] #samples vs #OTUs", x="samples", y="OTUs")
+otus_vs_samples_plot + geom_point() + geom_text(check_overlap = TRUE,hjust = -0.05, nudge_y = 0.05, size = 5) + scale_x_continuous(limits = c(0, 150)) + labs(title="[tb1] #samples vs #OTUs", x="samples", y="OTUs") + coord_trans(y = "log10")
 ```
 
 Let's exclude Dinophyceae from the table so that the rest of the groups are easiest to compare. [PLOT DESCRIPTION]
@@ -1272,7 +1276,7 @@ tb16_ss5844_tax_sorted[1:5,124:125]
 ```{r select_phototrophs_16S2, echo=FALSE}
 tb16_bacteria <- tb16_ss5844_tax_sorted[which(tb16_ss5844_tax_sorted$taxonomic_classes != "Bolidophyceae" & tb16_ss5844_tax_sorted$taxonomic_classes != "Chlorarachniophyta" & tb16_ss5844_tax_sorted$taxonomic_classes != "Cryptophyceae" & tb16_ss5844_tax_sorted$taxonomic_classes != "Pelagophyceae" & tb16_ss5844_tax_sorted$taxonomic_classes != "Rappemonad" & tb16_ss5844_tax_sorted$taxonomic_classes != "Cryptomonadales" & tb16_ss5844_tax_sorted$taxonomic_classes != "Bacillariophyta" & tb16_ss5844_tax_sorted$taxonomic_classes != "Dictyochophyceae" & tb16_ss5844_tax_sorted$taxonomic_classes != "Mamiellophyceae" & tb16_ss5844_tax_sorted$taxonomic_classes != "Prasinophyceae" & tb16_ss5844_tax_sorted$taxonomic_classes != "Eustigmatales" & tb16_ss5844_tax_sorted$taxonomic_classes != "Trebouxiophyceae" & tb16_ss5844_tax_sorted$taxonomic_classes != "Prymnesiophyceae" & tb16_ss5844_tax_sorted$taxonomic_classes != "other_plastids"),]
 
-tb16_protists <- tb16_ss5844_tax_sorted[which(tb16_ss5844_tax_sorted$taxonomic_classes != "heterotrophic_bacteria" & tb16_ss5844_tax_sorted$taxonomic_classes != "other_cyanob" & tb16_ss5844_tax_sorted$taxonomic_classes != "Prochlorococcus" & tb16_ss5844_tax_sorted$taxonomic_classes != "Synechococcus"),]
+tb16_protists <- tb16_ss5844_tax_sorted[which(tb16_ss5844_tax_sorted$taxonomic_classes != "heterotrophic_bacteria" & tb16_ss5844_tax_sorted$taxonomic_classes != "other_cyanobacteria" & tb16_ss5844_tax_sorted$taxonomic_classes != "Prochlorococcus" & tb16_ss5844_tax_sorted$taxonomic_classes != "Synechococcus"),]
 
 dim(tb16_protists)
 dim(tb16_bacteria)
@@ -1394,7 +1398,7 @@ heterotrophic_bacteria_tb <- tb16_bacteria[which(tb16_bacteria$taxonomic_classes
 heterotrophic_bacteria_tb_occur <- heterotrophic_bacteria_tb[,1:119]
 length(heterotrophic_bacteria_tb_occur[,colSums(heterotrophic_bacteria_tb_occur) > 0])
 
-other_cyanob_tb <- tb16_bacteria[which(tb16_bacteria$taxonomic_classes == "other_cyanob"),]
+other_cyanob_tb <- tb16_bacteria[which(tb16_bacteria$taxonomic_classes == "other_cyanobacteria"),]
 other_cyanob_tb_occur <- other_cyanob_tb[,1:119]
 length(other_cyanob_tb_occur[,colSums(other_cyanob_tb_occur) > 0])
 
@@ -1420,6 +1424,9 @@ tb16S_protists_OTUs_reads_samples<-tb16S_protists_OTUs_reads_samples[order(tb16S
 #add no. of samples per class
 tb16S_protists_OTUs_reads_samples["samples_per_class"] <- NA
 tb16S_protists_OTUs_reads_samples$samples_per_class<-c(118,117,114,98,31,26,21,27,13,13,2)
+
+#table without "other_plastids"
+#tb16S_protists_OTUs_reads_samples_without_op <- tb16S_protists_OTUs_reads_samples[-1,]
 ```
 
 ```{r create_table_merging_#OTUs_#reads_#samples_bacteria, echo=FALSE}
@@ -1436,7 +1443,7 @@ tb16S_bacteria_OTUs_reads_samples<-tb16S_bacteria_OTUs_reads_samples[order(tb16S
 tb16S_bacteria_OTUs_reads_samples["samples_per_class"] <- NA
 tb16S_bacteria_OTUs_reads_samples$samples_per_class<-c(119,119,119,107)
 
-#table without heterotropic_bacteria
+#table without "heterotropic_bacteria"
 tb16S_bacteria_OTUs_reads_samples_without_hb <- tb16S_bacteria_OTUs_reads_samples[-1,]
 ```
 
