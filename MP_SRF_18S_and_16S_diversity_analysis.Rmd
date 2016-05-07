@@ -751,8 +751,8 @@ otus_vs_samples_plot + geom_point() + geom_text(check_overlap = TRUE,hjust = -0.
 ### 1.6.2) Non-normalized data
 
 
-```{r merge_tables, echo=FALSE}
-tb18_tax_occur_min8522_t<-t(tb18_tax_occur_min8522)
+```{r merge_tables_non.norm_18S, echo=FALSE}
+tb18_tax_occur_min8522_t<-tb18_tax_occur_min8522
 tb18_min8522_tax<-merge(tb18_tax_occur_min8522_t,tb18_class, by="row.names")
 
 dim(tb18_min8522_tax)
@@ -779,13 +779,13 @@ dim(tb18_min8522_tax_sorted)
 tb18_min8522_tax_sorted[1:5,1:5]
 ```
 
-```{r select_phototrophs, echo=FALSE}
+```{r select_phototrophs_non.norm_18S, echo=FALSE}
 tb18_phototrophs_non.norm <- tb18_min8522_tax_sorted[which(tb18_min8522_tax_sorted$MAS_plus_BM_plus_SILVA_class != "" & tb18_min8522_tax_sorted$MAS_plus_BM_plus_SILVA_class != "NA"),]
 
 dim(tb18_phototrophs_non.norm)
 ```
 
-```{r count_samples_per_group, echo=FALSE}
+```{r count_samples_per_group_non.norm_18S, echo=FALSE}
 #create a table per group and count in how many samples they occur. 
 Dinophyceae_tb <- tb18_phototrophs_non.norm[which(tb18_phototrophs_non.norm$MAS_plus_BM_plus_SILVA_class == "Dinophyceae"),]
 Dinophyceae_tb[1:5,1:5]
@@ -863,7 +863,7 @@ write.table(Trebouxiophyceae_tb_occur, "Trebouxiophyceae_tb_occur.txt", sep = "\
 length(Trebouxiophyceae_tb_occur[,colSums(Trebouxiophyceae_tb_occur) > 0])
 ```
 
-```{r aggregate, echo=FALSE}
+```{r aggregate_non.norm_18S, echo=FALSE}
 class_summary_reads_per_class_non.norm<-aggregate(rowSums(tb18_phototrophs_non.norm[1:117]), list(tb18_phototrophs_non.norm$MAS_plus_BM_plus_SILVA_class), sum)
 # count the different groups
 
@@ -894,7 +894,7 @@ colnames(class_summary_otus_per_class_non.norm_order)<-c("OTUs_per_class")
 # sum reads different groups
 ```
 
-```{r create_table_merging_#OTUs_#reads_#samples, echo=FALSE}
+```{r create_table_merging_#OTUs_#reads_#samples_non.norm_18S, echo=FALSE}
 tb18S_OTUs_reads_samples_non.norm <- merge(class_summary_reads_per_class_non.norm_order, class_summary_otus_per_class_non.norm_order, by="row.names")
 
 row.names(tb18S_OTUs_reads_samples_non.norm)<-tb18S_OTUs_reads_samples_non.norm[,1]
@@ -907,15 +907,16 @@ tb18S_OTUs_reads_samples_non.norm<-tb18S_OTUs_reads_samples_non.norm[order(tb18S
 
 #add no. of samples per class
 tb18S_OTUs_reads_samples_non.norm["samples_per_class"] <- NA
-tb18S_OTUs_reads_samples_non.norm$samples_per_class<-c(117,117,117,112,117,96,91,103,102,92,44,33,13,36,17,27,5)
+tb18S_OTUs_reads_samples_non.norm$samples_per_class<-c(117,117,117,113,116,103,112,112,108,111,97,65,35,75,75,50,18)
 
 tb18S_OTUs_reads_samples_non.norm
 ```
 
+```{r OTUs_vs_reads_relative_values_non.norm_18S, echo=FALSE}
 tb18S_OTUs_reads_samples_rel_abund_non.norm <- tb18S_OTUs_reads_samples_non.norm
 
-tb18S_OTUs_reads_samples_rel_abund_non.norm$reads_per_class<-(tb18S_OTUs_reads_samples_rel_abund_non.norm$reads_per_class*100)/colSums(tb18S_OTUs_reads_samples)[1]
-tb18S_OTUs_reads_samples_rel_abund_non.norm$OTUs_per_class<-(tb18S_OTUs_reads_samples_rel_abund_non.norm$OTUs_per_class*100)/colSums(tb18S_OTUs_reads_samples)[2]
+tb18S_OTUs_reads_samples_rel_abund_non.norm$reads_per_class<-(tb18S_OTUs_reads_samples_rel_abund_non.norm$reads_per_class*100)/colSums(tb18S_OTUs_reads_samples_non.norm)[1]
+tb18S_OTUs_reads_samples_rel_abund_non.norm$OTUs_per_class<-(tb18S_OTUs_reads_samples_rel_abund_non.norm$OTUs_per_class*100)/colSums(tb18S_OTUs_reads_samples_non.norm)[2]
 tb18S_OTUs_reads_samples_rel_abund_non.norm$samples_per_class<-(tb18S_OTUs_reads_samples_rel_abund_non.norm$samples_per_class*100)/117
 
 colSums(tb18S_OTUs_reads_samples_rel_abund_non.norm)
@@ -924,14 +925,14 @@ tb18S_OTUs_reads_samples_rel_abund_non.norm
 
 [PLOT DESCRIPTION]
 
-```{r stations_vs_OTUs_18S, echo=FALSE}
+```{r stations_vs_OTUs_non.norm_18S, echo=FALSE}
 otus_vs_samples_plot <- ggplot(tb18S_OTUs_reads_samples_rel_abund_non.norm, aes(samples_per_class,OTUs_per_class, label = rownames(tb18S_OTUs_reads_samples)))
 otus_vs_samples_plot + geom_point() + geom_text(check_overlap = TRUE,hjust = -0.05, nudge_y = 0.05, size = 3) + scale_x_continuous(limits = c(0, 105)) + labs(title="[tb5] #samples vs #OTUs - protists", x="samples (%)", y="OTUs (%)") + coord_trans(y = "log10")
 ```
 
 [PLOT DESCRIPTION]
 
-```{r OTUs_vs_reads_18S, echo=FALSE}
+```{r OTUs_vs_reads_non.norm_18S, echo=FALSE}
 otus_vs_samples_plot <- ggplot(tb18S_OTUs_reads_samples_rel_abund_non.norm, aes(OTUs_per_class, reads_per_class, label = rownames(tb18S_OTUs_reads_samples)))
 otus_vs_samples_plot + geom_point() + geom_text(check_overlap = TRUE,hjust = -0.05, nudge_x = 0.05, size=3) + labs(title="[tb6] #OTUs vs #reads - protists", x="OTUs (%)", y="reads (%)") + coord_trans(y = "log10") + scale_x_log10(limits = c(-1, 100))
 ```
