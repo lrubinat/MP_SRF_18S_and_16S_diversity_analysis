@@ -131,3 +131,18 @@ OTUs_vs_reads_protists_16S	aes	c	coord_trans	geom_point	geom_text	ggplot	labs	OT
 OTUs_vs_reads_protists_plus_bacteria_relative_values	$	$<-	colSums	tb16S_protists_plus_bacteria_OTUs_reads_samples
 stations_vs_OTUs_protists_plus_bacteria_rel_abundance	aes	c	coord_trans	geom_point	geom_text	ggplot	labs	OTUs_per_class	rownames	samples_per_class	scale_x_continuous	tb16S_protists_plus_bacteria_OTUs_reads_samples_rel_abund
 OTUs_vs_reads_protists_plus_bacteria_rel_abundance	aes	c	coord_trans	geom_point	geom_text	ggplot	labs	OTUs_per_class	reads_per_class	rownames	scale_x_continuous	tb16S_protists_plus_bacteria_OTUs_reads_samples_rel_abund
+merge_tables_16S_non.norm	[<-	$	$<-	as.character	as.numeric	dim	merge	order	rownames	rownames<-	sapply	strsplit	tb16_class	tb16_tax_occur_min5836
+select_phototrophs_16S_non.norm	!=	$	&	dim	tb16_min5836_tax_sorted	which
+aggregate_16S_protists_non.norm	$	aggregate	attach	c	colnames<-	detach	length	list	order	row.names<-	rowSums	sum	tb16_protists_non.norm	x
+aggregate_16S_bacteria_non.norm	$	aggregate	attach	c	colnames<-	detach	length	list	order	row.names<-	rowSums	sum	tb16_bacteria_non.norm	x
+count_samples_per_group_16S_protists_non.norm	==	>	$	colSums	dim	length	tb16_protists_non.norm	which
+count_samples_per_group_16S_bacteria_non.norm	==	>	$	colSums	length	tb16_bacteria_non.norm	which
+create_table_merging_#OTUs_#reads_#samples_protists_non.norm	[<-	$	$<-	c	class_summary_otus_per_class_16S_protists_non.norm_order	class_summary_reads_per_class_16S_protists_non.norm_order	colnames<-	merge	order	row.names<-	T
+create_table_merging_#OTUs_#reads_#samples_bacteria_non.norm	[<-	$	$<-	c	class_summary_otus_per_class_16S_bacteria_non.norm_order	class_summary_reads_per_class_16S_bacteria_non.norm_order	colnames<-	merge	order	row.names<-	T
+OTUs_vs_reads_protists_relative_values_non.norm	$	$<-	colSums	tb16S_protists_OTUs_reads_samples_non.norm
+stations_vs_OTUs_protists_16S_non.norm	aes	c	coord_trans	geom_point	geom_text	ggplot	labs	OTUs_per_class	rownames	samples_per_class	scale_x_continuous	tb16S_protists_OTUs_reads_samples_non.norm	tb16S_protists_OTUs_reads_samples_non.norm_rel_abund
+OTUs_vs_reads_protists_16S_non.norm	aes	c	coord_trans	geom_point	geom_text	ggplot	labs	OTUs_per_class	reads_per_class	rownames	scale_x_continuous	tb16S_protists_OTUs_reads_samples_non.norm	tb16S_protists_OTUs_reads_samples_non.norm_rel_abund
+OTUs_vs_reads_protists_plus_bacteria_relative_values_non.norm	$	$<-	colSums	tb16S_protists_plus_bacteria_OTUs_reads_samples_non.norm
+stations_vs_OTUs_protists_plus_bacteria_rel_abundance_non.norm	aes	c	coord_trans	geom_point	geom_text	ggplot	labs	OTUs_per_class	rownames	samples_per_class	scale_x_continuous	tb16S_protists_plus_bacteria_OTUs_reads_samples_non.norm_rel_abund
+OTUs_vs_reads_protists_plus_bacteria_rel_abundance_non.norm	aes	c	coord_trans	geom_point	geom_text	ggplot	labs	OTUs_per_class	reads_per_class	rownames	scale_x_continuous	tb16S_protists_plus_bacteria_OTUs_reads_samples_non.norm_rel_abund
+merge_protists_and_bacteria_tb_non.norm	rbind	tb16S_bacteria_OTUs_reads_samples_non.norm	tb16S_protists_OTUs_reads_samples_non.norm
