@@ -1,5 +1,5 @@
 ---
-title: "MP_SRF_18S_amplicons_tax"
+title: "MP_SRF_amplicons_18S_and_16S_diversity_analysis"
 author: "lrubinat"
 date: "05/03/2016"
 output:
@@ -1681,7 +1681,7 @@ Reads per class vs. OTUs per class - PROTISTS vs CYANOBACTERIA [PLOT DESCRIPTION
 
 ```{r OTUs_vs_reads_protists_plus_bacteria, echo=FALSE}
 otus_vs_samples_plot_protists_plus_bacteria <- ggplot(tb16S_protists_plus_bacteria_OTUs_reads_samples, aes(OTUs_per_class, reads_per_class, label = rownames(tb16S_protists_plus_bacteria_OTUs_reads_samples)))
-otus_vs_samples_plot_protists_plus_bacteria + geom_point() + geom_text(check_overlap = TRUE,hjust = -0.05, nudge_x = 0.05, size=3) + scale_x_continuous(limits = c(0, 35)) + labs(title="[tb10] #Reads per class vs. OTUs per class", x="OTUs", y="reads") + coord_trans(y = "log10")
+otus_vs_samples_plot_protists_plus_bacteria + geom_point() + geom_text(check_overlap = TRUE,hjust = -0.05, nudge_x = 0.05, size=3) + scale_x_continuous(limits = c(0, 35)) + labs(title="[10] Reads per class vs. OTUs per class", x="OTUs", y="reads") + coord_trans(y = "log10")
 ```
 
 #### 2.6.1.2) Relative values
