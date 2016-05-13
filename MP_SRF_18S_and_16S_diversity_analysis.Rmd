@@ -704,13 +704,41 @@ tb18S_OTUs_reads_samples
 ```
 
 OTUs per class vs. samples in which they occur [PLOT DESCRIPTION]
+<!---
+```{r stations_vs_OTUs_v1, echo=FALSE}
+#library(ggplot2)
+#library(ggrepel)
+
+#otus_vs_samples_plot <- ggplot(tb18S_OTUs_reads_samples, aes(samples_per_class,OTUs_per_class, label = rownames(tb18S_OTUs_reads_samples)))
+
+#otus_vs_samples_plot + 
+#geom_point() + 
+#geom_text_repel(
+# aes(samples_per_class,OTUs_per_class, label = rownames(tb18S_OTUs_reads_samples),
+#  mapping = TRUE,
+#  inherit.aes = TRUE,
+#  size = 3,
+#  box.padding = unit(0.1, "lines"),
+#  point.padding = unit(0.15, "lines")
+#  ) +
+
+#geom_text(check_overlap = TRUE,hjust = -0.05, nudge_y = 0.05, size = 3) + scale_x_continuous(limits = c(0, 137)) + 
+#labs(title="[1] OTUs per class vs. samples in which they occur", x="samples", y="OTUs") + coord_trans(y = "log10") 
+```
+--->
 
 ```{r stations_vs_OTUs, echo=FALSE}
 library(ggplot2)
+library(ggrepel)
 
-otus_vs_samples_plot <- ggplot(tb18S_OTUs_reads_samples, aes(samples_per_class,OTUs_per_class, label = rownames(tb18S_OTUs_reads_samples)))
-otus_vs_samples_plot + geom_point() + geom_text(check_overlap = TRUE,hjust = -0.05, nudge_y = 0.05, size = 3) + scale_x_continuous(limits = c(0, 137)) + labs(title="[1] OTUs per class vs. samples in which they occur", x="samples", y="OTUs") + coord_trans(y = "log10")
+ggplot(tb18S_OTUs_reads_samples) +
+  geom_point(aes(samples_per_class,OTUs_per_class)) +
+  geom_text_repel(aes(samples_per_class,OTUs_per_class, label = rownames(tb18S_OTUs_reads_samples)), size=3, force = 3, box.padding = unit(0.05, "lines"), point.padding = unit(0.1, 'lines'), nudge_y = 15) + 
+  scale_x_continuous(limits = c(0, 137)) + 
+  labs(title="[1] OTUs per class vs. samples in which they occur", x="samples", y="OTUs") + 
+  coord_trans(y = "log10") 
 ```
+
 
 Reads per class vs. OTUs per class [PLOT DESCRIPTION]
 
