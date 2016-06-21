@@ -766,7 +766,12 @@ OTUs per class vs. samples in which they occur [PLOT DESCRIPTION]
 
 ```{r stations_vs_OTUs_18S, echo=FALSE}
 otus_vs_samples_plot <- ggplot(tb18S_OTUs_reads_samples_rel_abund, aes(samples_per_class,OTUs_per_class, label = rownames(tb18S_OTUs_reads_samples)))
-otus_vs_samples_plot + geom_point() + geom_text(check_overlap = TRUE,hjust = -0.05, nudge_y = 0.05, size = 3) + scale_x_continuous(limits = c(0, 116), breaks=c(25,50,75,100)) + labs(title="[3] OTUs per class vs. samples in which they occur", x="samples (%)", y="OTUs (%)") + coord_trans(y = "log10")
+otus_vs_samples_plot + geom_point() + geom_text(check_overlap = TRUE,hjust = -0.05, nudge_y = 0.05, size = 3) + scale_x_continuous(limits = c(0, 116), breaks=c(25,50,75,100)) + labs(title="[3] OTUs per class vs. samples in which they occur", x="MP-iTags-18S samples (%)", y="OTUs (%)") + coord_trans(y = "log10")
+
+
+ggplot(tb18S_OTUs_reads_samples_rel_abund) +
+  geom_point(aes(samples_per_class,OTUs_per_class)) +
+  geom_text_repel(aes(samples_per_class,OTUs_per_class, label = rownames(tb18S_OTUs_reads_samples)), size=3, force = 3, box.padding = unit(0.10, "lines"), point.padding = unit(0.2, 'lines')) + scale_x_continuous(limits = c(0, 116), breaks=c(25,50,75,100)) + labs(title="[3.2] OTUs per class vs. samples in which they occur", x="MP-iTags-18S samples (%)", y="MP-iTags-18S OTUs (%)") + coord_trans(y = "log10")
 ```
 
 Reads per class vs. OTUs per class [PLOT DESCRIPTION]
@@ -774,6 +779,12 @@ Reads per class vs. OTUs per class [PLOT DESCRIPTION]
 ```{r OTUs_vs_reads_18S, echo=FALSE}
 otus_vs_samples_plot <- ggplot(tb18S_OTUs_reads_samples_rel_abund, aes(OTUs_per_class, reads_per_class, label = rownames(tb18S_OTUs_reads_samples)))
 otus_vs_samples_plot + geom_point() + geom_text(check_overlap = TRUE,hjust = -0.05, nudge_x = 0.05, size=3) + labs(title="[4] Reads per class vs. OTUs per class", x="OTUs (%)", y="reads (%)") + coord_trans(y = "log10") + scale_x_log10(limits = c(-1,200), breaks = c(0.1,1,10,100))
+
+
+ggplot(tb18S_OTUs_reads_samples_rel_abund) +
+  geom_point(aes(OTUs_per_class, reads_per_class)) +
+  geom_text_repel(aes(OTUs_per_class, reads_per_class, label = rownames(tb18S_OTUs_reads_samples)), size=3, force = 3, box.padding = unit(0.10, "lines"), point.padding = unit(0.2, 'lines')) + labs(title="[4.2] Reads per class vs. OTUs per class", x="MP-iTags-18S OTUs (%)", y="MP-iTags-18S reads (%)") + coord_trans(y = "log10") + scale_x_log10(limits = c(-1,200), breaks = c(0.1,1,10,100))
+
 ```
 
 
@@ -955,7 +966,7 @@ OTUs per class vs. samples in which they occur [PLOT DESCRIPTION]
 
 ```{r stations_vs_OTUs_non.norm_18S, echo=FALSE}
 otus_vs_samples_plot <- ggplot(tb18S_OTUs_reads_samples_rel_abund_non.norm, aes(samples_per_class,OTUs_per_class, label = rownames(tb18S_OTUs_reads_samples)))
-otus_vs_samples_plot + geom_point() + geom_text(check_overlap = TRUE,hjust = -0.05, nudge_y = 0.05, size = 3) + scale_x_continuous(limits = c(0, 116), breaks=c(25,50,75,100)) + labs(title="[5] OTUs per class vs. samples in which they occur", x="samples (%)", y="OTUs (%)") + coord_trans(y = "log10")
+otus_vs_samples_plot + geom_point() + geom_text(check_overlap = TRUE,hjust = -0.05, nudge_y = 0.05, size = 3) + scale_x_continuous(limits = c(0, 116), breaks=c(25,50,75,100)) + labs(title="[5] OTUs per class vs. samples in which they occur", x="MP-iTags-18S samples (%)", y="OTUs (%)") + coord_trans(y = "log10")
 ```
 
 Reads per class vs. OTUs per class [PLOT DESCRIPTION]
@@ -1364,6 +1375,13 @@ MP_16s_ss5836_mantel_correl_by_100km<-mantel.correlog(tb16_tax_occur_ss5836_no_c
 plot(MP_16s_ss5836_mantel_correl_by_100km)
 ```
 
+```{r mantel_correlogram1_18S_vs_16S, echo=T}
+mantel(tb18_tax_occur_ss8522_no_cero.bray, tb16_tax_occur_ss5836_no_cero.bray)
+```
+
+
+
+
 ## 2.5) Abundance vs. occurence
 
 ```{r OTUs_mean_relative_abund_16S, echo=F, results="hide"}
@@ -1758,7 +1776,12 @@ tb16S_protists_plus_bacteria_OTUs_reads_samples_rel_abund
 
 ```{r stations_vs_OTUs_protists_plus_bacteria_rel_abundance, echo=FALSE}
 otus_vs_samples_plot_protists_plus_bacteria <- ggplot(tb16S_protists_plus_bacteria_OTUs_reads_samples_rel_abund, aes(samples_per_class,OTUs_per_class, label = rownames(tb16S_protists_plus_bacteria_OTUs_reads_samples_rel_abund)))
-otus_vs_samples_plot_protists_plus_bacteria + geom_point() + geom_text(check_overlap = TRUE,hjust = -0.05, nudge_y = 0.05, size = 3) + scale_x_continuous(limits = c(0, 120)) + labs(title="[13] OTUs per class vs. samples in which they occur", x="samples (%)", y="OTUs (%)") + coord_trans(y = "log10")
+otus_vs_samples_plot_protists_plus_bacteria + geom_point() + geom_text(check_overlap = TRUE,hjust = -0.05, nudge_y = 0.05, size = 3) + scale_x_continuous(limits = c(0, 120)) + labs(title="[13] OTUs per class vs. samples in which they occur", x="MP-iTags-16S samples (%)", y="MP-iTags-16S OTUs (%)") + coord_trans(y = "log10")
+
+ggplot(tb16S_protists_plus_bacteria_OTUs_reads_samples_rel_abund) +
+  geom_point(aes(samples_per_class,OTUs_per_class)) +
+  geom_text_repel(aes(samples_per_class,OTUs_per_class, label = rownames(tb16S_protists_plus_bacteria_OTUs_reads_samples_rel_abund)), size=3, force = 5, box.padding = unit(0.10, "lines"), point.padding = unit(0.2, 'lines'), nudge_y = 0.5) + scale_x_continuous(limits = c(0, 120)) + labs(title="[13.2] OTUs per class vs. samples in which they occur", x="MP-iTags-16S samples (%)", y="MP-iTags-16S OTUs (%)") + coord_trans(y = "log10")
+
 ```
 
 Reads per class vs. OTUs per class - PROTISTS vs CYANOBACTERIA [PLOT DESCRIPTION]
@@ -1766,6 +1789,11 @@ Reads per class vs. OTUs per class - PROTISTS vs CYANOBACTERIA [PLOT DESCRIPTION
 ```{r OTUs_vs_reads_protists_plus_bacteria_rel_abundance, echo=FALSE}
 otus_vs_samples_plot_protists_plus_bacteria <- ggplot(tb16S_protists_plus_bacteria_OTUs_reads_samples_rel_abund, aes(OTUs_per_class, reads_per_class, label = rownames(tb16S_protists_plus_bacteria_OTUs_reads_samples_rel_abund)))
 otus_vs_samples_plot_protists_plus_bacteria + geom_point() + geom_text(check_overlap = TRUE,hjust = -0.05, nudge_x = 0.05, size=3) + scale_x_continuous(limits = c(0, 40)) + labs(title="[14] Reads per class vs. OTUs per class", x="OTUs (%)", y="reads (%)") + coord_trans(y = "log10") 
+
+
+ggplot(tb16S_protists_plus_bacteria_OTUs_reads_samples_rel_abund) +
+  geom_point(aes(OTUs_per_class, reads_per_class)) +
+  geom_text_repel(aes(OTUs_per_class, reads_per_class, label = rownames(tb16S_protists_plus_bacteria_OTUs_reads_samples_rel_abund)), size=3, force = 0.5, box.padding = unit(0.10, "lines"), point.padding = unit(0.2, 'lines'))  + scale_x_continuous(limits = c(0, 40)) + labs(title="[14.2] Reads per class vs. OTUs per class", x="MP-iTags-16S OTUs (%)", y="MP-iTags-16S reads (%)") + coord_trans(y = "log10")
 ```
 
 ### 2.6.2) Non-normalized data

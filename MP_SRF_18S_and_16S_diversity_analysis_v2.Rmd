@@ -1,0 +1,2030 @@
+---
+title: "MP_SRF_amplicons_18S_and_16S_diversity_analysis"
+author: "lrubinat"
+date: "05/03/2016"
+output:
+  html_document:
+    theme: united
+    toc: yes
+  pdf_document:
+    highlight: zenburn
+    toc: yes
+---
+
+<!--- INITIALIZATION
+```{r, echo=FALSE}
+#error hook to kill knitr in case of errors
+library(knitr)
+knit_hooks$set(error = function(x, options) stop(x))
+opts_chunk$set(cache=TRUE, autodep=TRUE)
+```
+--->
+
+# 1) 18S amplicons
+
+## 1.1) Data overview
+
+Let's read the dataset and remove the samples containing less than 8522 reads:
+
+``` {r load_data, echo=FALSE, message=FALSE}
+setwd("/home/laura/Documents/TFM/genwork/data_analysis/MP_SRF_18S_and_16S_diversity_analysis/")
+
+#read data 
+tb18_tax <- read.table(file="/home/laura/Documents/TFM/home/data/MALASPINA/Malaspina_18S_Surface/table_with_BLAST/MP_18S_SRF_MAS_BM_SILVA_classif_tab_filtered.txt", head=TRUE, fill=TRUE)
+
+#table dimensions and format before setting column names
+dim(tb18_tax) # 47144   130
+tb18_tax[1:5,1:5]
+
+#row names = OTU name (option A)
+row.names(tb18_tax)<-tb18_tax[,1]
+
+#row names = row number (option B)
+#rownames(otu_tb18) <- 1:nrow(otu_tb18)
+
+tb18_tax<-tb18_tax[,-1]
+tb18_tax[is.na(tb18_tax)]<-"NA"
+
+dim(tb18_tax)
+tb18_tax[1:5,1:5]
+
+#table with taxonomi classification alone
+tb18_class <- tb18_tax[,123:129]
+dim(tb18_class)
+tb18_class[1:5,1:7]
+
+#table with occurence data alone
+tb18_tax_occur <- tb18_tax[,1:122]
+dim(tb18_tax_occur) # 47144   122
+tb18_tax_occur[1:5,1:5]
+
+amplicons_per_sample_tb18<-colSums(tb18_tax_occur)
+amplicons_per_sample_tb18[which(colSums(tb18_tax_occur)<8522)]
+# sample st054 has less than 8522 reads.
+
+#remove samples with less than 8522 reads
+tb18_tax_occur_min8522 <- tb18_tax_occur[,colSums(tb18_tax_occur) >= 8522]
+dim(tb18_tax_occur_min8522)
+
+#remove samples with omitted in 16S dataset (so that we can compare the relative abundance of 16S and 18S OTUs considering the same samples)
+tb18_tax_occur_min8522<-subset(tb18_tax_occur_min8522, select=-c(st122, st124, st137, st144))
+dim(tb18_tax_occur_min8522) #47144   117
+
+#let's check if we loose any OTU when excluding the mentioned stations.
+tb18_tax_occur_min8522_no_cero<-tb18_tax_occur_min8522[,-(which(colSums(tb18_tax_occur_min8522)==0))]
+dim(tb18_tax_occur_min8522_no_cero)
+```
+
+Table dimensions and content outline:
+
+```{r starting_dataset, echo=FALSE}
+dim(tb18_tax_occur_min8522)
+tb18_tax_occur_min8522[1:5,1:5]
+```
+
+Minimum number of reads per station:
+
+```{r reads_per_sample_overview1, echo=1}
+min(colSums(tb18_tax_occur_min8522)) 
+#8522
+```
+
+Maximum number of reads per station:
+
+```{r reads_per_sample_overview2, echo=1}
+max(colSums(tb18_tax_occur_min8522)) 
+# max: 936570
+```
+
+Identification of station with higher number of reads:
+
+```{r reads_per_sample_overview3, echo=TRUE}
+amplicons_per_sample<-colSums(tb18_tax_occur_min8522)
+amplicons_per_sample[which(colSums(tb18_tax_occur_min8522)>900000)]
+```
+
+Overall reads per sample:
+
+``` {r reads_per_sample_overview4, echo=FALSE}
+plot(sort(colSums(tb18_tax_occur_min8522)), pch=19, xlab="sample", ylab="reads per sample", cex=0.9)
+```
+
+
+## 1.2) Normalization
+
+Let's normalize the original dataset by randomly subsampling 8522 reads in each station:
+
+``` {r species_richness_rarefaction1, echo=TRUE}
+library(vegan)
+tb18_tax_occur_min8522_t<-t(tb18_tax_occur_min8522)
+tb18_tax_occur_ss8522<-rrarefy(tb18_tax_occur_min8522_t, 8522)
+```
+
+The normalized table shows the following dimensions and format:
+
+```{r species_richness_rarefaction2, echo=FALSE}
+dim(tb18_tax_occur_ss8522)
+tb18_tax_occur_ss8522[1:5,1:5]
+```
+
+Its content fits with the expected normalization values (8522 reads per station):
+
+``` {r species_richness_rarefaction3, echo=TRUE}
+rowSums(tb18_tax_occur_ss8522)
+```
+
+Let's check out how many OTUs don't appear in the new table:
+
+```{r species_richness_rarefaction4, echo=1:5}
+length(which(colSums(tb18_tax_occur_ss8522)==0)) 
+```
+
+There are 20487 OTUs that don't show any occurrence in the normalized data. Let's remove them from the table and take a look at its final dimensions:
+
+```{r species_richness_rarefaction5, echo=1:3}
+tb18_tax_occur_ss8522_no_cero<-tb18_tax_occur_ss8522[,-(which(colSums(tb18_tax_occur_ss8522)==0))]
+dim(tb18_tax_occur_ss8522_no_cero)
+
+#the final dimensions of the normalized table are 117 26657.
+#26657 + 20487 = 47144
+```
+
+Datasets summary:
+dim(tb18_tax) --> 47144   129
+dim(tb18_tax_occur) --> 47144   122
+dim(tb18_tax_occur_ss8522_no_cero) --> 117 26657
+
+
+
+## 1.3) General community analysis
+
+### 1.3.1) Richness and evenness (Shannon index)
+
+```{r shannon_index1, echo=FALSE}
+tb18_tax_occur_ss8522_div <- diversity(tb18_tax_occur_ss8522_no_cero, index="shannon")
+```
+
+Most of the samples take Shannon Index values between 5.5 and 6:
+
+```{r shannon_index2, echo=FALSE}
+boxplot(tb18_tax_occur_ss8522_div, pch=19, main="Shannon's index of diversity")
+plot(sort(tb18_tax_occur_ss8522_div), pch=19, main="Shannon's index of diversity")
+```
+
+### 1.3.2) Richness: OTU number
+
+```{r richness_otu_no1, echo=FALSE}
+OTUs_per_sample_18S_tax_occur_ss8522<-specnumber(tb18_tax_occur_ss8522_no_cero)
+```
+
+Lowest number of OTUs per sample:
+
+```{r richness_otu_no2, echo=FALSE}
+min(OTUs_per_sample_18S_tax_occur_ss8522)
+```
+
+Maximum number of OTUs per sample:
+
+```{r richness_otu_no3, echo=FALSE}
+max(OTUs_per_sample_18S_tax_occur_ss8522)
+```
+
+In most of the samples, we can identify between 1000 and 1300 OTUs:
+
+```{r richness_otu_no4, echo=TRUE}
+plot(sort(OTUs_per_sample_18S_tax_occur_ss8522), pch=19)
+boxplot(OTUs_per_sample_18S_tax_occur_ss8522, pch=19)
+```
+
+### 1.3.3) Index of evenness
+
+#### 1.3.3.1) Pielou's index
+
+```{r pielou_index_of_evenness1, echo=TRUE}
+pielou_evenness_18S_tax_occur_ss8522 <- tb18_tax_occur_ss8522_div/log(OTUs_per_sample_18S_tax_occur_ss8522)
+```
+
+The Pielou index (constrained between 0 and 1) takes values closer to 1 as the variation of species proportion in a sample decreases. Most of the samples get values between 0.8 and 0.9, meaning that the numerical composition of different OTUs in a sample is highly similar:
+
+```{r pielou_index_of_evenness2, echo=TRUE}
+plot(sort(pielou_evenness_18S_tax_occur_ss8522), pch=19)
+boxplot(pielou_evenness_18S_tax_occur_ss8522, pch=19)
+```
+
+The OTU_2, with 27292 reads, is the most abundant in the overall dataset:
+
+```{r OTUs_overall_abundance, echo=TRUE}
+head(sort(colSums(tb18_tax_occur_ss8522_no_cero), decreasing=T), n=10L)
+```
+
+Most of the OTUs show very few occurrences; the plot suggests that we will probably be able to identify a significant ammount of rare otus:
+
+```{r OTUs_overall_abundance2, echo=TRUE}
+plot(log(sort(colSums(tb18_tax_occur_ss8522_no_cero), decreasing=T)), pch=19)
+```
+
+<!---
+#### 1.3.3.2) Sads
+library(sads)
+?sads
+--->
+
+### 1.3.4) Abundance Models
+#### 1.3.4.1) Rank-Abundance or Dominance/Diversity Model ("radfit")
+
+The OTUs abundance distribution fits relativelly close to log-normal model. 
+
+```{r radfit, echo=FALSE}
+#?radfit
+#otu_tb18_t[1:5,1:5]
+
+tb18_tax_occur_min8522_radfit<-radfit(colSums(tb18_tax_occur_min8522_t))
+plot(tb18_tax_occur_min8522_radfit)
+```
+
+#### 1.3.4.2) Preston's Lognormal Model
+
+According to Preston's lognormal model fit into species frequencies groups, we're missing ~3226 species:
+
+```{r preston_model1, echo=T}
+tb18_tax_occur_ss8522_prestonfit<-prestonfit(colSums(tb18_tax_occur_min8522_t))
+plot(tb18_tax_occur_ss8522_prestonfit, main="Pooled species")
+
+veiledspec(tb18_tax_occur_ss8522_prestonfit)
+```
+
+When computing Prestons' lognormal model fit without pooling data into groups, we seem to miss ~3055 species:
+
+```{r preston_model2, echo=4}
+tb18_tax_occur_ss8522_dist_all<-prestondistr(colSums(tb18_tax_occur_min8522_t))
+plot(tb18_tax_occur_ss8522_prestonfit, main="All malaspina")
+lines(tb18_tax_occur_ss8522_dist_all, line.col="blue3")
+
+veiledspec(tb18_tax_occur_ss8522_dist_all)
+```
+
+<!---
+### 1.3.5) Rarefaction curve
+
+(To be computed)
+
+```{r rarefraction_curve, echo=TRUE}
+#?rarecurve
+
+#str(colSums(otu_tb18_t))
+
+#otus_tb18_colsums<-colSums(otu_tb18_t)
+
+#str(otus_tb18_colsums)
+#otu_tb18_colsums<-as.matrix(otu_tb18_colsums)
+
+#otu_tb18_colsums<-t(otu_tb18_colsums)
+
+#otu_tb18_colsums[,1:3]
+
+#rarecurve(otu_tb18_colsums, step = 1, 50000, xlab = "Sample Size", ylab = "OTUs", label = TRUE)
+#rarecurve(colSums(otu_tb18_t), step = 1, 50000, xlab = "Sample Size", ylab = "OTUs", label = TRUE)
+```
+--->
+
+### 1.3.6) Beta diversity
+
+#### 1.3.6.1) Dissimilarity matrix using Bray-Curtis index:
+
+The Bray-Curtis dissimilarity, constrained between 0 (minimum distance) and 1 (highest dissimilarity) allows us to quantify the differences between samples according to the composition and relative abundance of their OTUs. In our dataset, most of the samples pairs take dissimilarity values between between 0.7 and 0.8, meaning that their composition is substantially different.
+
+```{r beta_div1, echo=FALSE}
+#?vegdist
+tb18_tax_occur_ss8522_no_cero.bray<-vegdist(tb18_tax_occur_ss8522_no_cero, method="bray")
+boxplot(tb18_tax_occur_ss8522_no_cero.bray, main="Bray-Curtis dissimilarity matrix")
+```
+
+#### 1.3.6.2) Hierarchical clustering
+
+The only relatively evident cluster we can distinguish in the dendogram stands out in the very left side of the plot. 
+
+(To be done: assign Longhurst provinces information to each station and check if any of the central clusters is meaningful regarding to the samples' geographical ubication)
+
+```{r beta_div2, echo=FALSE}
+#UPGMA
+tb18_tax_occur_ss8522_no_cero.upgma<-hclust(tb18_tax_occur_ss8522_no_cero.bray, "average")
+plot(tb18_tax_occur_ss8522_no_cero.upgma, cex=.35, main="Samples Hierarchical Clustering")
+```
+
+#### 1.3.6.3) Non-metric multidimensional scaling
+
+We can identify a prominent group in the central part of the NMDS plot and a few outliers in the middle-left edge of the plot. The stress parameter takes a value below 0.3, suggesting that the plot is acceptable. 
+
+```{r monoNMDS, echo=F}
+#NMDS
+tb18_tax_occur_ss8522_no_cero.nmds<-monoMDS(tb18_tax_occur_ss8522_no_cero.bray)
+tb18_tax_occur_ss8522_no_cero.nmds
+plot(tb18_tax_occur_ss8522_no_cero.nmds, main="monoMDs method")
+```
+
+When implementing a most robut function for computing NMDS plots, the result is quiet the same:
+
+```{r metaNMDS, echo=F}
+tb18_tax_occur_ss8522_no_cero.meta_nmds<-metaMDS(tb18_tax_occur_ss8522_no_cero.bray)
+plot(tb18_tax_occur_ss8522_no_cero.meta_nmds, main="metaMDS method")
+```
+
+## 1.4) Geographical analysis
+
+```{r load_geo_data, echo=F, results="hide", message=F}
+#load geographical ubication of stations and sort according to otu_tb18 stations sequence.
+MP_geo_18S<-read.table(file="/home/laura/Documents/TFM/home/data/MALASPINA/mp_surface_ubication_stationname_sorted_filtered.txt", sep="\t", header=T)
+
+row.names(MP_geo_18S)<-MP_geo_18S[,1]
+MP_geo_18S_sorted<-MP_geo_18S[row.names(tb18_tax_occur_ss8522_no_cero),]
+
+dim(MP_geo_18S_sorted)
+MP_geo_18S_sorted[1:5,1:5]
+tb18_tax_occur_ss8522_no_cero[1:5,1:5]
+
+#read lat-long in decimal degrees and translate into distance in km.
+library(fossil)
+
+#select only columns containing info about station, latitude and longitude.
+MP_geo_18S_sorted_v2<-create.lats(MP_geo_18S_sorted, loc="OTUId", long="long", lat="lat")
+head(MP_geo_18S_sorted)
+
+#create a distance matrix (lower triangle) between a list of points.
+geo_distances_MP_18S<-earth.dist(MP_geo_18S_sorted_v2, dist = TRUE)
+head(geo_distances_MP_18S)
+dim(geo_distances_MP_18S)
+
+geo_distances_MP_18S<-as.matrix(geo_distances_MP_18S)
+dim(geo_distances_MP_18S)
+
+#geo distances dataset ready to use "geo_distances_MP_18S"
+```
+
+Working datasets:
+
+1) Community matrix: tb18_tax_occur_ss8522_no_cero
+
+```{r working_datasets1, echo=T}
+dim(tb18_tax_occur_ss8522_no_cero)
+tb18_tax_occur_ss8522_no_cero[1:5, 1:5]
+```
+
+2) Community Bray-Curtis: tb18_tax_occur_ss8522_no_cero.bray
+
+```{r working_datasets2, echo=2}
+dim(tb18_tax_occur_ss8522_no_cero.bray)
+tb18_tax_occur_ss8522_no_cero.bray<-as.matrix(tb18_tax_occur_ss8522_no_cero.bray)
+```
+
+3) Stations distances in km: geo_distances_MP_18S
+
+```{r working_datasets3, echo=T}
+dim(geo_distances_MP_18S)
+```
+
+Communities quickly change their composition across geographical distances:
+
+```{r working_datasets4, echo=T}
+plot(geo_distances_MP_18S, tb18_tax_occur_ss8522_no_cero.bray, pch=19, cex=0.4, xlab="Geopgraphical distances", ylab="Bray-Curtis dissimilarities")
+```
+
+### 1.4.1) Mantel correlograms
+
+Mantel statistic is -significantlly- so low, meaning that the correlation between samples dissimilarity and geographical distances is weak.
+
+```{r mantel_correlogram1, echo=T}
+mantel(geo_distances_MP_18S, tb18_tax_occur_ss8522_no_cero.bray)
+```
+
+Maximum distance between samples:
+
+```{r mantel_correlogram2, echo=F}
+max(geo_distances_MP_18S)
+```
+
+Minimum distance between samples:
+
+```{r mantel_correlogram3, echo=F}
+min(geo_distances_MP_18S)
+```
+
+Correlograms:
+
+```{r mantel_correlogram4, echo=T}
+MP_18s_ss8522_mantel_correl_by_1000km<-mantel.correlog(tb18_tax_occur_ss8522_no_cero.bray, D.geo=geo_distances_MP_18S, break.pts=seq(0,20000, by=1000))
+plot(MP_18s_ss8522_mantel_correl_by_1000km)
+
+MP_18s_ss8522_mantel_correl_by_100km<-mantel.correlog(tb18_tax_occur_ss8522_no_cero.bray, D.geo=geo_distances_MP_18S, break.pts=seq(0,20000, by=100))
+plot(MP_18s_ss8522_mantel_correl_by_100km)
+```
+
+## 1.5) Abundance vs. occurence
+
+```{r OTUs_mean_relative_abund, echo=F, results="hide"}
+tb18_tax_occur_ss8522_no_cero[1:5,1:5]
+tb18_tax_occur_ss8522_no_cero_t<-t(tb18_tax_occur_ss8522_no_cero)
+
+colSums(tb18_tax_occur_ss8522_no_cero_t)
+
+#local abundance percentage
+tb18_tax_occur_ss8522_no_cero_t.rabund<-tb18_tax_occur_ss8522_no_cero_t/8522
+
+colSums(tb18_tax_occur_ss8522_no_cero_t.rabund)
+tb18_tax_occur_ss8522_no_cero_t.rabund[1:5,1:5]
+
+#OTUs mean relative abundance
+tb18_tax_occur_ss8522_no_cero_t.rabund_means<-rowMeans(tb18_tax_occur_ss8522_no_cero_t.rabund) 
+tb18_tax_occur_ss8522_no_cero_t.rabund_means<-as.data.frame(tb18_tax_occur_ss8522_no_cero_t.rabund_means)
+
+head(tb18_tax_occur_ss8522_no_cero_t.rabund_means)
+```
+
+```{r OTUs_occurence, echo=F, results='hide'}
+tb18_tax_occur_ss8522_no_cero_t.rabund.occur<-tb18_tax_occur_ss8522_no_cero_t.rabund
+tb18_tax_occur_ss8522_no_cero_t.rabund.occur[tb18_tax_occur_ss8522_no_cero_t.rabund.occur>0]<-1
+tb18_tax_occur_ss8522_no_cero_t.rabund.occur[1:5,1:5] ### presence - absence table
+
+#percentage of occurence in overall stations
+tb18_tax_occur_ss8522_no_cero_t.rabund_means.occurence_perc<-as.data.frame(100*(rowSums(tb18_tax_occur_ss8522_no_cero_t.rabund.occur)/117))
+
+str(tb18_tax_occur_ss8522_no_cero_t.rabund_means.occurence_perc)
+```
+
+```{r merge_rabund_peroccur, echo=F, results='hide'}
+otu_tb18_ss8522_rabund_percoccur<-merge(tb18_tax_occur_ss8522_no_cero_t.rabund_means,tb18_tax_occur_ss8522_no_cero_t.rabund_means.occurence_perc, by="row.names")
+
+colnames(otu_tb18_ss8522_rabund_percoccur)<-c("OTUs","mean_rabund","perc_occur")
+otu_tb18_ss8522_rabund_percoccur[1:5,]
+
+row.names(otu_tb18_ss8522_rabund_percoccur)<-otu_tb18_ss8522_rabund_percoccur[,1]
+otu_tb18_ss8522_rabund_percoccur<-otu_tb18_ss8522_rabund_percoccur[,-1]
+otu_tb18_ss8522_rabund_percoccur[1:5,]
+```
+
+In the following plot, we can appreciate the OTUs distribution according to their percentage of occurence and relative abundance. The red line keeps up OTUs that occur in more than 80% of the samples, the green line limits regionally rare OTUs (< 0.001%), and the blue one restricts regionally abundant OTUs (> 0.1%).
+
+```{r abund_vs_occurence_table, echo=F}
+plot(otu_tb18_ss8522_rabund_percoccur$mean_rabund,otu_tb18_ss8522_rabund_percoccur$perc_occur, log="x", pch=19, cex=0.8, xlab="Mean relative abundance", ylab="Percentage of occurence")
+abline(h=80, col="red") #occurence higher than 80%
+abline(v=0.00001, col="green") #rare OTUs
+abline(v=0.001, col="blue") #cosmopolitan OTUs
+
+#Conventional limits:
+#Regionally rare     = 0.00001
+#Regionally abundant = 0.001
+```
+
+Regionally abundant OTUs (relative abundance over 0.1%):
+
+```{r abundant_OTUs, echo=7}
+#regionally abundant
+tb18_ss8522_abundant<-otu_tb18_ss8522_rabund_percoccur[otu_tb18_ss8522_rabund_percoccur$mean_rabund > 0.001,]
+
+tb18_ss8522_abundant_sorted<-tb18_ss8522_abundant[order(tb18_ss8522_abundant$mean_rabund, tb18_ss8522_abundant$perc_occur, decreasing = T), c(1,2)]
+
+tb18_ss8522_abundant_sorted
+dim(tb18_ss8522_abundant_sorted)
+```
+
+Proportion of regionally abundant OTUs (%):
+
+```{r abundant_OTUs2, echo=F}
+#there are 83 regionally abundant OTUs.
+(162/25191)*100 # = 7.29% of the OTUs are regionally abundant
+
+#length(row.names(otu_tb18_ss8522_rabund_percoccur[otu_tb18_ss8522_rabund_percoccur$mean_rabund > 0.001,])) # 83 OTUs
+#row.names(otu_tb18_ss8522_rabund_percoccur[otu_tb18_ss8522_rabund_percoccur$mean_rabund > 0.001,])
+```
+
+Cosmopolitan OTUs (relative abundance over 0.1% and occurence in more than 80% of samples):
+
+```{r select_cosmopolitan, echo=6}
+otu_tb18_ss8522_rabund_cosm<-otu_tb18_ss8522_rabund_percoccur[otu_tb18_ss8522_rabund_percoccur$mean_rabund > 0.001,]
+otu_tb18_ss8522_rabund_poccur_cosm<-otu_tb18_ss8522_rabund_cosm[otu_tb18_ss8522_rabund_cosm$perc_occur > 80,]
+otu_tb18_ss8522_cosmop_sorted<-otu_tb18_ss8522_rabund_poccur_cosm[order(otu_tb18_ss8522_rabund_poccur_cosm$perc_occur, otu_tb18_ss8522_rabund_poccur_cosm$mean_rabund, decreasing = T), c(1,2)]
+
+otu_tb18_ss8522_cosmop_sorted
+dim(otu_tb18_ss8522_cosmop_sorted)
+```
+
+Proportion of cosmopolitan OTUs (%):
+
+```{r percentage_cosmopolitan, echo=F}
+(64/25191)*100
+```
+
+Number and proportion (%) of rare OTUs:
+
+```{r rare_OTUs, echo=1}
+dim(otu_tb18_ss8522_rabund_percoccur[otu_tb18_ss8522_rabund_percoccur$mean_rabund < 0.00001 & otu_tb18_ss8522_rabund_percoccur$mean_rabund >0,])
+ 
+(18551/25191)*100 # = 28.56% of the OTUs are regionally rare
+```
+
+<!---
+```{r otu_col_chech, echo = T}
+dim(otu_tb18_ss8522_rabund_percoccur)
+dim(tb18_tax_occur_min8522)
+
+#rare OTUs:
+# length(row.names(otu_tb16_ss8522_rabund_percoccur[otu_tb16_ss8522_rabund_percoccur$mean_rabund < 0.00001 & otu_tb16_ss8522_rabund_percoccur$mean_rabund >0 ,])) # 325 OTUs
+```
+--->
+
+
+
+## 1.6) Taxonomic composition analysis
+
+### 1.6.1) Normalized data
+
+#### 1.6.1.1) Absolute values
+
+Let's add the taxonomic classification to the left OTUs by merging "tb18_tax_occur_ss8522_no_cero" with "tb18_tax":
+
+```{r merge_tables, echo=FALSE}
+tb18_tax_occur_ss8522_no_cero_t<-t(tb18_tax_occur_ss8522_no_cero)
+tb18_ss8522_tax<-merge(tb18_tax_occur_ss8522_no_cero_t,tb18_class, by="row.names")
+
+dim(tb18_ss8522_tax)
+tb18_ss8522_tax[1:5,1:5]
+
+#fix OTU_no as new row
+rownames(tb18_ss8522_tax)=tb18_ss8522_tax$Row.names
+
+#add OTU_no as rowname
+rownames.tb18_ss8522_tax<-tb18_ss8522_tax[,1]
+tb18_ss8522_tax<-tb18_ss8522_tax[,-1]
+#colnames(tb18_ss8522_tax, do.NULL=F)
+
+dim(tb18_ss8522_tax)
+tb18_ss8522_tax[1:5, 1:5]
+
+#sort by OTU_no (split rowname, introduce no. into column "OTU_no" and sort)
+tb18_ss8522_tax["OTU_no"] <- NA
+tb18_ss8522_tax$OTU_no <- sapply(strsplit(rownames(tb18_ss8522_tax),split= "\\_"),'[',2)
+tb18_ss8522_tax$OTU_no <- as.numeric(as.character(tb18_ss8522_tax$OTU_no))
+tb18_ss8522_tax_sorted<-tb18_ss8522_tax[order(tb18_ss8522_tax$OTU_no, decreasing = FALSE), ]
+
+dim(tb18_ss8522_tax_sorted)
+tb18_ss8522_tax_sorted[1:5,1:5]
+```
+
+```{r select_phototrophs, echo=FALSE}
+# [TEMPORARY EDITION] for some reason, the taxonomic classification of "OTU_2485" is not properly parsed. As it is not classified as a phototroph anyway, by now let's get rid of it by excluding empty cells (""). 
+tb18_phototrophs <- tb18_ss8522_tax_sorted[which(tb18_ss8522_tax_sorted$MAS_plus_BM_plus_SILVA_class != "" & tb18_ss8522_tax_sorted$MAS_plus_BM_plus_SILVA_class != "NA"),]
+
+dim(tb18_phototrophs)
+```
+
+```{r count_samples_per_group, echo=FALSE}
+#create a table per group and count in how many samples they occur. 
+Dinophyceae_tb <- tb18_phototrophs[which(tb18_phototrophs$MAS_plus_BM_plus_SILVA_class == "Dinophyceae"),]
+Dinophyceae_tb[1:5,1:5]
+Dinophyceae_tb_occur <- Dinophyceae_tb[,1:117]
+Dinophyceae_tb_occur[1:5,1:5]
+dim(Dinophyceae_tb_occur)
+
+length(Dinophyceae_tb_occur[,colSums(Dinophyceae_tb_occur) > 0])
+#Dinophyceae_tb_samples <- Dinophyceae_tb_occur[,colSums(Dinophyceae_tb_occur) > 0]
+#length(Dinophyceae_tb_samples[which(colSums(Dinophyceae_tb_occur) != 0)])
+
+Prasinophyceae_tb <- tb18_phototrophs[which(tb18_phototrophs$MAS_plus_BM_plus_SILVA_class == "Prasinophyceae"),]
+Prasinophyceae_tb_occur <- Prasinophyceae_tb[,1:117]
+length(Prasinophyceae_tb_occur[,colSums(Prasinophyceae_tb_occur) > 0])
+
+Chrysophyceae_tb <- tb18_phototrophs[which(tb18_phototrophs$MAS_plus_BM_plus_SILVA_class == "Chrysophyceae"),]
+Chrysophyceae_tb_occur <- Chrysophyceae_tb[,1:117]
+length(Chrysophyceae_tb_occur[,colSums(Chrysophyceae_tb_occur) > 0])
+
+Pelagophyceae_tb <- tb18_phototrophs[which(tb18_phototrophs$MAS_plus_BM_plus_SILVA_class == "Pelagophyceae"),]
+Pelagophyceae_tb_occur <- Pelagophyceae_tb[,1:117]
+length(Pelagophyceae_tb_occur[,colSums(Pelagophyceae_tb_occur) > 0])
+
+Dictyochophyceae_tb <- tb18_phototrophs[which(tb18_phototrophs$MAS_plus_BM_plus_SILVA_class == "Dictyochophyceae"),]
+Dictyochophyceae_tb_occur <- Dictyochophyceae_tb[,1:117]
+length(Dictyochophyceae_tb_occur[,colSums(Dictyochophyceae_tb_occur) > 0])
+
+Cryptomonadales_tb <- tb18_phototrophs[which(tb18_phototrophs$MAS_plus_BM_plus_SILVA_class == "Cryptomonadales"),]
+Cryptomonadales_tb_occur <- Cryptomonadales_tb[,1:117]
+length(Cryptomonadales_tb_occur[,colSums(Cryptomonadales_tb_occur) > 0])
+
+Bacillariophyta_tb <- tb18_phototrophs[which(tb18_phototrophs$MAS_plus_BM_plus_SILVA_class == "Bacillariophyta"),]
+Bacillariophyta_tb_occur <- Bacillariophyta_tb[,1:117]
+length(Bacillariophyta_tb_occur[,colSums(Bacillariophyta_tb_occur) > 0])
+
+Chlorarachniophyta_tb <- tb18_phototrophs[which(tb18_phototrophs$MAS_plus_BM_plus_SILVA_class == "Chlorarachniophyta"),]
+Chlorarachniophyta_tb_occur <- Chlorarachniophyta_tb[,1:117]
+length(Chlorarachniophyta_tb_occur[,colSums(Chlorarachniophyta_tb_occur) > 0])
+
+Bolidophyceae_tb <- tb18_phototrophs[which(tb18_phototrophs$MAS_plus_BM_plus_SILVA_class == "Bolidophyceae"),]
+Bolidophyceae_tb_occur <- Bolidophyceae_tb[,1:117]
+length(Bolidophyceae_tb_occur[,colSums(Bolidophyceae_tb_occur) > 0])
+
+Pinguiochysidales_tb <- tb18_phototrophs[which(tb18_phototrophs$MAS_plus_BM_plus_SILVA_class == "Pinguiochysidales"),]
+Pinguiochysidales_tb_occur <- Pinguiochysidales_tb[,1:117]
+length(Pinguiochysidales_tb_occur[,colSums(Pinguiochysidales_tb_occur) > 0])
+
+Prymnesiophyceae_tb <- tb18_phototrophs[which(tb18_phototrophs$MAS_plus_BM_plus_SILVA_class == "Prymnesiophyceae"),]
+Prymnesiophyceae_tb_occur <- Prymnesiophyceae_tb[,1:117]
+length(Prymnesiophyceae_tb_occur[,colSums(Prymnesiophyceae_tb_occur) > 0])
+
+Mamiellophyceae_tb <- tb18_phototrophs[which(tb18_phototrophs$MAS_plus_BM_plus_SILVA_class == "Mamiellophyceae"),]
+Mamiellophyceae_tb_occur <- Mamiellophyceae_tb[,1:117]
+length(Mamiellophyceae_tb_occur[,colSums(Mamiellophyceae_tb_occur) > 0])
+
+Eustigmatales_tb <- tb18_phototrophs[which(tb18_phototrophs$MAS_plus_BM_plus_SILVA_class == "Eustigmatales"),]
+Eustigmatales_tb_occur <- Eustigmatales_tb[,1:117]
+length(Eustigmatales_tb_occur[,colSums(Eustigmatales_tb_occur) > 0])
+
+Chlorophyceae_tb <- tb18_phototrophs[which(tb18_phototrophs$MAS_plus_BM_plus_SILVA_class == "Chlorophyceae"),]
+Chlorophyceae_tb_occur <- Chlorophyceae_tb[,1:117]
+length(Chlorophyceae_tb_occur[,colSums(Chlorophyceae_tb_occur) > 0])
+
+Ulvophyceae_tb <- tb18_phototrophs[which(tb18_phototrophs$MAS_plus_BM_plus_SILVA_class == "Ulvophyceae"),]
+Ulvophyceae_tb_occur <- Ulvophyceae_tb[,1:117]
+length(Ulvophyceae_tb_occur[,colSums(Ulvophyceae_tb_occur) > 0])
+
+Raphydophyceae_tb <- tb18_phototrophs[which(tb18_phototrophs$MAS_plus_BM_plus_SILVA_class == "Raphydophyceae"),]
+Raphydophyceae_tb_occur <- Raphydophyceae_tb[,1:117]
+length(Raphydophyceae_tb_occur[,colSums(Raphydophyceae_tb_occur) > 0])
+
+Trebouxiophyceae_tb <- tb18_phototrophs[which(tb18_phototrophs$MAS_plus_BM_plus_SILVA_class == "Trebouxiophyceae"),]
+Trebouxiophyceae_tb_occur <- Trebouxiophyceae_tb[,1:117]
+write.table(Trebouxiophyceae_tb_occur, "Trebouxiophyceae_tb_occur.txt", sep = "\t")
+length(Trebouxiophyceae_tb_occur[,colSums(Trebouxiophyceae_tb_occur) > 0])
+```
+
+```{r aggregate, echo=FALSE}
+class_summary_reads_per_class<-aggregate(rowSums(tb18_phototrophs[1:117]), list(tb18_phototrophs$MAS_plus_BM_plus_SILVA_class), sum)
+# count the different groups
+
+class_summary_otus_per_class<-aggregate(rowSums(tb18_phototrophs[1:117]), list(tb18_phototrophs$MAS_plus_BM_plus_SILVA_class), length)
+
+## READS PER CLASS ##
+attach(class_summary_reads_per_class)
+class_summary_reads_per_class_order<-class_summary_reads_per_class[order(-x),]
+detach(class_summary_reads_per_class)
+class_summary_reads_per_class_order
+
+#fix column names
+row.names(class_summary_reads_per_class_order)<-class_summary_reads_per_class_order[,1]
+class_summary_reads_per_class_order<-class_summary_reads_per_class_order[c(-1)]
+colnames(class_summary_reads_per_class_order)<-c("reads_per_class")
+
+## OTUs PER CLASS ##
+attach(class_summary_otus_per_class)
+class_summary_otus_per_class_order<-class_summary_otus_per_class[order(-x),]
+detach(class_summary_otus_per_class)
+class_summary_otus_per_class_order
+
+row.names(class_summary_otus_per_class_order)<-class_summary_otus_per_class_order[,1]
+class_summary_otus_per_class_order<-class_summary_otus_per_class_order[c(-1)]
+colnames(class_summary_otus_per_class_order)<-c("OTUs_per_class")
+
+#class_summary_reads<-aggregate(sum~class, data=otutab_full_wTax, FUN="sum") 
+# sum reads different groups
+```
+
+```{r create_table_merging_#OTUs_#reads_#samples, echo=FALSE}
+tb18S_OTUs_reads_samples <- merge(class_summary_reads_per_class_order, class_summary_otus_per_class_order, by="row.names")
+
+row.names(tb18S_OTUs_reads_samples)<-tb18S_OTUs_reads_samples[,1]
+
+tb18S_OTUs_reads_samples<-tb18S_OTUs_reads_samples[,-1]
+colnames(tb18S_OTUs_reads_samples)<-c("reads_per_class","OTUs_per_class")
+tb18S_OTUs_reads_samples[1:5,1:2]
+
+tb18S_OTUs_reads_samples<-tb18S_OTUs_reads_samples[order(tb18S_OTUs_reads_samples$reads_per_class, tb18S_OTUs_reads_samples$OTUs_per_class, decreasing = T), c(1,2)]
+
+#add no. of samples per class
+tb18S_OTUs_reads_samples["samples_per_class"] <- NA
+tb18S_OTUs_reads_samples$samples_per_class<-c(117,117,117,112,117,96,91,103,102,92,44,33,13,36,17,27,5)
+
+tb18S_OTUs_reads_samples
+```
+
+OTUs per class vs. samples in which they occur [PLOT DESCRIPTION]
+<!---
+```{r stations_vs_OTUs_v1, echo=FALSE}
+#library(ggplot2)
+#library(ggrepel)
+
+#otus_vs_samples_plot <- ggplot(tb18S_OTUs_reads_samples, aes(samples_per_class,OTUs_per_class, label = rownames(tb18S_OTUs_reads_samples)))
+
+#otus_vs_samples_plot + 
+#geom_point() + 
+#geom_text_repel(
+# aes(samples_per_class,OTUs_per_class, label = rownames(tb18S_OTUs_reads_samples),
+#  mapping = TRUE,
+#  inherit.aes = TRUE,
+#  size = 3,
+#  box.padding = unit(0.1, "lines"),
+#  point.padding = unit(0.15, "lines")
+#  ) +
+
+#geom_text(check_overlap = TRUE,hjust = -0.05, nudge_y = 0.05, size = 3) + scale_x_continuous(limits = c(0, 137)) + 
+#labs(title="[1] OTUs per class vs. samples in which they occur", x="samples", y="OTUs") + coord_trans(y = "log10") 
+```
+--->
+
+```{r stations_vs_OTUs, echo=FALSE}
+library(ggplot2)
+library(ggrepel)
+
+ggplot(tb18S_OTUs_reads_samples) +
+  geom_point(aes(samples_per_class,OTUs_per_class)) +
+  geom_text_repel(aes(samples_per_class,OTUs_per_class, label = rownames(tb18S_OTUs_reads_samples)), size=3, force = 3, box.padding = unit(0.05, "lines"), point.padding = unit(0.1, 'lines'), nudge_y = 15) + 
+  scale_x_continuous(limits = c(0, 137)) + 
+  labs(title="[1] OTUs per class vs. samples in which they occur", x="samples", y="OTUs") + 
+  coord_trans(y = "log10") 
+```
+
+
+Reads per class vs. OTUs per class [PLOT DESCRIPTION]
+
+```{r OTUs_vs_reads, echo=FALSE}
+otus_vs_samples_plot <- ggplot(tb18S_OTUs_reads_samples, aes(OTUs_per_class, reads_per_class, label = rownames(tb18S_OTUs_reads_samples)))
+otus_vs_samples_plot + geom_point() + geom_text(check_overlap = TRUE,hjust = -0.05, nudge_x = 0.05, size=3) + scale_x_log10(limits = c(-1, 15000), breaks=c(0.1,1,10,100,1000,1000)) + scale_y_continuous(trans = "log10") + labs(title="[2] Reads per class vs. OTUs per class", x="OTUs (log10)", y="reads (log10)") 
+```
+
+#### 1.6.1.1) Relative values
+
+
+```{r OTUs_vs_reads_relative_values_18S, echo=FALSE}
+
+tb18S_OTUs_reads_samples_rel_abund <- tb18S_OTUs_reads_samples
+
+tb18S_OTUs_reads_samples_rel_abund$reads_per_class<-(tb18S_OTUs_reads_samples_rel_abund$reads_per_class*100)/colSums(tb18S_OTUs_reads_samples)[1]
+tb18S_OTUs_reads_samples_rel_abund$OTUs_per_class<-(tb18S_OTUs_reads_samples_rel_abund$OTUs_per_class*100)/colSums(tb18S_OTUs_reads_samples)[2]
+tb18S_OTUs_reads_samples_rel_abund$samples_per_class<-(tb18S_OTUs_reads_samples_rel_abund$samples_per_class*100)/117
+
+colSums(tb18S_OTUs_reads_samples_rel_abund)
+tb18S_OTUs_reads_samples_rel_abund
+```
+
+OTUs per class vs. samples in which they occur [PLOT DESCRIPTION]
+
+```{r stations_vs_OTUs_18S, echo=FALSE}
+otus_vs_samples_plot <- ggplot(tb18S_OTUs_reads_samples_rel_abund, aes(samples_per_class,OTUs_per_class, label = rownames(tb18S_OTUs_reads_samples)))
+otus_vs_samples_plot + geom_point() + geom_text(check_overlap = TRUE,hjust = -0.05, nudge_y = 0.05, size = 3) + scale_x_continuous(limits = c(0, 116), breaks=c(25,50,75,100)) + labs(title="[3] OTUs per class vs. samples in which they occur", x="samples (%)", y="OTUs (%)") + coord_trans(y = "log10")
+
+
+ggplot(tb18S_OTUs_reads_samples_rel_abund) +
+  geom_point(aes(samples_per_class,OTUs_per_class)) +
+  geom_text_repel(aes(samples_per_class,OTUs_per_class, label = rownames(tb18S_OTUs_reads_samples)), size=3, force = 3, box.padding = unit(0.05, "lines"), point.padding = unit(0.1, 'lines'), nudge_y = 5) + scale_x_continuous(limits = c(0, 116), breaks=c(25,50,75,100)) + labs(title="[3.2] OTUs per class vs. samples in which they occur", x="samples (%)", y="OTUs (%)") + coord_trans(y = "log10")
+
+```
+
+Reads per class vs. OTUs per class [PLOT DESCRIPTION]
+
+```{r OTUs_vs_reads_18S, echo=FALSE}
+otus_vs_samples_plot <- ggplot(tb18S_OTUs_reads_samples_rel_abund, aes(OTUs_per_class, reads_per_class, label = rownames(tb18S_OTUs_reads_samples)))
+otus_vs_samples_plot + geom_point() + geom_text(check_overlap = TRUE,hjust = -0.05, nudge_x = 0.05, size=3) + labs(title="[4] Reads per class vs. OTUs per class", x="OTUs (%)", y="reads (%)") + coord_trans(y = "log10") + scale_x_log10(limits = c(-1,200), breaks = c(0.1,1,10,100))
+```
+
+
+### 1.6.2) Non-normalized data
+
+```{r merge_tables_non.norm_18S, echo=FALSE}
+tb18_tax_occur_min8522_t<-tb18_tax_occur_min8522
+tb18_min8522_tax<-merge(tb18_tax_occur_min8522_t,tb18_class, by="row.names")
+
+dim(tb18_min8522_tax)
+tb18_min8522_tax[1:5,1:5]
+
+#fix OTU_no as new row
+rownames(tb18_min8522_tax)=tb18_min8522_tax$Row.names
+
+#add OTU_no as rowname
+rownames.tb18_min8522_tax<-tb18_min8522_tax[,1]
+tb18_min8522_tax<-tb18_min8522_tax[,-1]
+#colnames(tb18_min8522_tax, do.NULL=F)
+
+dim(tb18_min8522_tax)
+tb18_min8522_tax[1:5, 1:5]
+
+#sort by OTU_no (split rowname, introduce no. into column "OTU_no" and sort)
+tb18_min8522_tax["OTU_no"] <- NA
+tb18_min8522_tax$OTU_no <- sapply(strsplit(rownames(tb18_min8522_tax),split= "\\_"),'[',2)
+tb18_min8522_tax$OTU_no <- as.numeric(as.character(tb18_min8522_tax$OTU_no))
+tb18_min8522_tax_sorted<-tb18_min8522_tax[order(tb18_min8522_tax$OTU_no, decreasing = FALSE), ]
+
+dim(tb18_min8522_tax_sorted)
+tb18_min8522_tax_sorted[1:5,1:5]
+```
+
+```{r select_phototrophs_non.norm_18S, echo=FALSE}
+tb18_phototrophs_non.norm <- tb18_min8522_tax_sorted[which(tb18_min8522_tax_sorted$MAS_plus_BM_plus_SILVA_class != "" & tb18_min8522_tax_sorted$MAS_plus_BM_plus_SILVA_class != "NA"),]
+
+dim(tb18_phototrophs_non.norm)
+```
+
+```{r count_samples_per_group_non.norm_18S, echo=FALSE}
+#create a table per group and count in how many samples they occur. 
+Dinophyceae_tb <- tb18_phototrophs_non.norm[which(tb18_phototrophs_non.norm$MAS_plus_BM_plus_SILVA_class == "Dinophyceae"),]
+Dinophyceae_tb[1:5,1:5]
+Dinophyceae_tb_occur <- Dinophyceae_tb[,1:117]
+Dinophyceae_tb_occur[1:5,1:5]
+dim(Dinophyceae_tb_occur)
+
+length(Dinophyceae_tb_occur[,colSums(Dinophyceae_tb_occur) > 0])
+#Dinophyceae_tb_samples <- Dinophyceae_tb_occur[,colSums(Dinophyceae_tb_occur) > 0]
+length(Dinophyceae_tb_occur[,colSums(Dinophyceae_tb_occur) > 0])
+
+Prasinophyceae_tb <- tb18_phototrophs_non.norm[which(tb18_phototrophs_non.norm$MAS_plus_BM_plus_SILVA_class == "Prasinophyceae"),]
+Prasinophyceae_tb_occur <- Prasinophyceae_tb[,1:117]
+length(Prasinophyceae_tb_occur[,colSums(Prasinophyceae_tb_occur) > 0])
+
+Chrysophyceae_tb <- tb18_phototrophs_non.norm[which(tb18_phototrophs_non.norm$MAS_plus_BM_plus_SILVA_class == "Chrysophyceae"),]
+Chrysophyceae_tb_occur <- Chrysophyceae_tb[,1:117]
+length(Chrysophyceae_tb_occur[,colSums(Chrysophyceae_tb_occur) > 0])
+
+Pelagophyceae_tb <- tb18_phototrophs_non.norm[which(tb18_phototrophs_non.norm$MAS_plus_BM_plus_SILVA_class == "Pelagophyceae"),]
+Pelagophyceae_tb_occur <- Pelagophyceae_tb[,1:117]
+length(Pelagophyceae_tb_occur[,colSums(Pelagophyceae_tb_occur) > 0])
+
+Dictyochophyceae_tb <- tb18_phototrophs_non.norm[which(tb18_phototrophs_non.norm$MAS_plus_BM_plus_SILVA_class == "Dictyochophyceae"),]
+Dictyochophyceae_tb_occur <- Dictyochophyceae_tb[,1:117]
+length(Dictyochophyceae_tb_occur[,colSums(Dictyochophyceae_tb_occur) > 0])
+
+Cryptomonadales_tb <- tb18_phototrophs_non.norm[which(tb18_phototrophs_non.norm$MAS_plus_BM_plus_SILVA_class == "Cryptomonadales"),]
+Cryptomonadales_tb_occur <- Cryptomonadales_tb[,1:117]
+length(Cryptomonadales_tb_occur[,colSums(Cryptomonadales_tb_occur) > 0])
+
+Bacillariophyta_tb <- tb18_phototrophs_non.norm[which(tb18_phototrophs_non.norm$MAS_plus_BM_plus_SILVA_class == "Bacillariophyta"),]
+Bacillariophyta_tb_occur <- Bacillariophyta_tb[,1:117]
+length(Bacillariophyta_tb_occur[,colSums(Bacillariophyta_tb_occur) > 0])
+
+Chlorarachniophyta_tb <- tb18_phototrophs_non.norm[which(tb18_phototrophs_non.norm$MAS_plus_BM_plus_SILVA_class == "Chlorarachniophyta"),]
+Chlorarachniophyta_tb_occur <- Chlorarachniophyta_tb[,1:117]
+length(Chlorarachniophyta_tb_occur[,colSums(Chlorarachniophyta_tb_occur) > 0])
+
+Bolidophyceae_tb <- tb18_phototrophs_non.norm[which(tb18_phototrophs_non.norm$MAS_plus_BM_plus_SILVA_class == "Bolidophyceae"),]
+Bolidophyceae_tb_occur <- Bolidophyceae_tb[,1:117]
+length(Bolidophyceae_tb_occur[,colSums(Bolidophyceae_tb_occur) > 0])
+
+Pinguiochysidales_tb <- tb18_phototrophs_non.norm[which(tb18_phototrophs_non.norm$MAS_plus_BM_plus_SILVA_class == "Pinguiochysidales"),]
+Pinguiochysidales_tb_occur <- Pinguiochysidales_tb[,1:117]
+length(Pinguiochysidales_tb_occur[,colSums(Pinguiochysidales_tb_occur) > 0])
+
+Prymnesiophyceae_tb <- tb18_phototrophs_non.norm[which(tb18_phototrophs_non.norm$MAS_plus_BM_plus_SILVA_class == "Prymnesiophyceae"),]
+Prymnesiophyceae_tb_occur <- Prymnesiophyceae_tb[,1:117]
+length(Prymnesiophyceae_tb_occur[,colSums(Prymnesiophyceae_tb_occur) > 0])
+
+Mamiellophyceae_tb <- tb18_phototrophs_non.norm[which(tb18_phototrophs_non.norm$MAS_plus_BM_plus_SILVA_class == "Mamiellophyceae"),]
+Mamiellophyceae_tb_occur <- Mamiellophyceae_tb[,1:117]
+length(Mamiellophyceae_tb_occur[,colSums(Mamiellophyceae_tb_occur) > 0])
+
+Eustigmatales_tb <- tb18_phototrophs_non.norm[which(tb18_phototrophs_non.norm$MAS_plus_BM_plus_SILVA_class == "Eustigmatales"),]
+Eustigmatales_tb_occur <- Eustigmatales_tb[,1:117]
+length(Eustigmatales_tb_occur[,colSums(Eustigmatales_tb_occur) > 0])
+
+Chlorophyceae_tb <- tb18_phototrophs_non.norm[which(tb18_phototrophs_non.norm$MAS_plus_BM_plus_SILVA_class == "Chlorophyceae"),]
+Chlorophyceae_tb_occur <- Chlorophyceae_tb[,1:117]
+length(Chlorophyceae_tb_occur[,colSums(Chlorophyceae_tb_occur) > 0])
+
+Ulvophyceae_tb <- tb18_phototrophs_non.norm[which(tb18_phototrophs_non.norm$MAS_plus_BM_plus_SILVA_class == "Ulvophyceae"),]
+Ulvophyceae_tb_occur <- Ulvophyceae_tb[,1:117]
+length(Ulvophyceae_tb_occur[,colSums(Ulvophyceae_tb_occur) > 0])
+
+Raphydophyceae_tb <- tb18_phototrophs_non.norm[which(tb18_phototrophs_non.norm$MAS_plus_BM_plus_SILVA_class == "Raphydophyceae"),]
+Raphydophyceae_tb_occur <- Raphydophyceae_tb[,1:117]
+length(Raphydophyceae_tb_occur[,colSums(Raphydophyceae_tb_occur) > 0])
+
+Trebouxiophyceae_tb <- tb18_phototrophs_non.norm[which(tb18_phototrophs_non.norm$MAS_plus_BM_plus_SILVA_class == "Trebouxiophyceae"),]
+Trebouxiophyceae_tb_occur <- Trebouxiophyceae_tb[,1:117]
+write.table(Trebouxiophyceae_tb_occur, "Trebouxiophyceae_tb_occur.txt", sep = "\t")
+length(Trebouxiophyceae_tb_occur[,colSums(Trebouxiophyceae_tb_occur) > 0])
+```
+
+```{r aggregate_non.norm_18S, echo=FALSE}
+class_summary_reads_per_class_non.norm<-aggregate(rowSums(tb18_phototrophs_non.norm[1:117]), list(tb18_phototrophs_non.norm$MAS_plus_BM_plus_SILVA_class), sum)
+# count the different groups
+
+class_summary_otus_per_class_non.norm<-aggregate(rowSums(tb18_phototrophs_non.norm[1:117]), list(tb18_phototrophs_non.norm$MAS_plus_BM_plus_SILVA_class), length)
+
+## READS PER CLASS ##
+attach(class_summary_reads_per_class_non.norm)
+class_summary_reads_per_class_non.norm_order<-class_summary_reads_per_class_non.norm[order(-x),]
+detach(class_summary_reads_per_class_non.norm)
+class_summary_reads_per_class_non.norm_order
+
+#fix column names
+row.names(class_summary_reads_per_class_non.norm_order)<-class_summary_reads_per_class_non.norm_order[,1]
+class_summary_reads_per_class_non.norm_order<-class_summary_reads_per_class_non.norm_order[c(-1)]
+colnames(class_summary_reads_per_class_non.norm_order)<-c("reads_per_class")
+
+## OTUs PER CLASS ##
+attach(class_summary_otus_per_class_non.norm)
+class_summary_otus_per_class_non.norm_order<-class_summary_otus_per_class_non.norm[order(-x),]
+detach(class_summary_otus_per_class_non.norm)
+class_summary_otus_per_class_non.norm_order
+
+row.names(class_summary_otus_per_class_non.norm_order)<-class_summary_otus_per_class_non.norm_order[,1]
+class_summary_otus_per_class_non.norm_order<-class_summary_otus_per_class_non.norm_order[c(-1)]
+colnames(class_summary_otus_per_class_non.norm_order)<-c("OTUs_per_class")
+
+#class_summary_reads<-aggregate(sum~class, data=otutab_full_wTax, FUN="sum") 
+# sum reads different groups
+```
+
+```{r create_table_merging_#OTUs_#reads_#samples_non.norm_18S, echo=FALSE}
+tb18S_OTUs_reads_samples_non.norm <- merge(class_summary_reads_per_class_non.norm_order, class_summary_otus_per_class_non.norm_order, by="row.names")
+
+row.names(tb18S_OTUs_reads_samples_non.norm)<-tb18S_OTUs_reads_samples_non.norm[,1]
+
+tb18S_OTUs_reads_samples_non.norm<-tb18S_OTUs_reads_samples_non.norm[,-1]
+colnames(tb18S_OTUs_reads_samples_non.norm)<-c("reads_per_class","OTUs_per_class")
+tb18S_OTUs_reads_samples_non.norm[1:5,1:2]
+
+tb18S_OTUs_reads_samples_non.norm<-tb18S_OTUs_reads_samples_non.norm[order(tb18S_OTUs_reads_samples_non.norm$reads_per_class, tb18S_OTUs_reads_samples_non.norm$OTUs_per_class, decreasing = T), c(1,2)]
+
+#add no. of samples per class
+tb18S_OTUs_reads_samples_non.norm["samples_per_class"] <- NA
+tb18S_OTUs_reads_samples_non.norm$samples_per_class<-c(117,117,117,113,116,103,112,112,108,111,97,65,35,75,75,50,18)
+
+tb18S_OTUs_reads_samples_non.norm
+```
+
+```{r OTUs_vs_reads_relative_values_non.norm_18S, echo=FALSE}
+tb18S_OTUs_reads_samples_rel_abund_non.norm <- tb18S_OTUs_reads_samples_non.norm
+
+tb18S_OTUs_reads_samples_rel_abund_non.norm$reads_per_class<-(tb18S_OTUs_reads_samples_rel_abund_non.norm$reads_per_class*100)/colSums(tb18S_OTUs_reads_samples_non.norm)[1]
+tb18S_OTUs_reads_samples_rel_abund_non.norm$OTUs_per_class<-(tb18S_OTUs_reads_samples_rel_abund_non.norm$OTUs_per_class*100)/colSums(tb18S_OTUs_reads_samples_non.norm)[2]
+tb18S_OTUs_reads_samples_rel_abund_non.norm$samples_per_class<-(tb18S_OTUs_reads_samples_rel_abund_non.norm$samples_per_class*100)/117
+
+colSums(tb18S_OTUs_reads_samples_rel_abund_non.norm)
+tb18S_OTUs_reads_samples_rel_abund_non.norm
+```
+
+OTUs per class vs. samples in which they occur [PLOT DESCRIPTION]
+
+```{r stations_vs_OTUs_non.norm_18S, echo=FALSE}
+otus_vs_samples_plot <- ggplot(tb18S_OTUs_reads_samples_rel_abund_non.norm, aes(samples_per_class,OTUs_per_class, label = rownames(tb18S_OTUs_reads_samples)))
+otus_vs_samples_plot + geom_point() + geom_text(check_overlap = TRUE,hjust = -0.05, nudge_y = 0.05, size = 3) + scale_x_continuous(limits = c(0, 116), breaks=c(25,50,75,100)) + labs(title="[5] OTUs per class vs. samples in which they occur", x="samples (%)", y="OTUs (%)") + coord_trans(y = "log10")
+```
+
+Reads per class vs. OTUs per class [PLOT DESCRIPTION]
+
+```{r OTUs_vs_reads_non.norm_18S, echo=FALSE}
+otus_vs_samples_plot <- ggplot(tb18S_OTUs_reads_samples_rel_abund_non.norm, aes(OTUs_per_class, reads_per_class, label = rownames(tb18S_OTUs_reads_samples)))
+otus_vs_samples_plot + geom_point() + geom_text(check_overlap = TRUE,hjust = -0.05, nudge_x = 0.05, size=3) + labs(title="[6] Reads per class vs. OTUs per class", x="OTUs (%)", y="reads (%)") + coord_trans(y = "log10") + scale_x_log10(limits = c(-1, 200), breaks=c(0.1,1,10,100))
+```
+
+
+
+
+# 2) 16S amplicons
+
+## 2.1) Data overview
+
+Let's read the dataset and remove the samples containing less than 5836 reads:
+
+``` {r load_data_16S, echo=FALSE, message=FALSE}
+#read data 
+tb16_tax <- read.table(file="/home/laura/Documents/TFM/home/data/MALASPINA/Malaspina_16S_Surface/table_with_BLAST/MP_16S_SRF_tax_classif_tab_filtered_v2.txt", head=TRUE, fill=TRUE)
+
+#table dimensions and format before setting column names
+dim(tb16_tax) # 960 129
+tb16_tax[1:5,1:5]
+
+#row names = OTU name (option A)
+row.names(tb16_tax)<-tb16_tax[,1]
+
+#row names = row number (option B)
+#rownames(otu_tb16) <- 1:nrow(otu_tb16)
+
+tb16_tax<-tb16_tax[,-1]
+tb16_tax[is.na(tb16_tax)]<-0
+
+dim(tb16_tax)
+tb16_tax[1:5,1:5]
+
+#table with taxonomi classification alone
+tb16_class <- tb16_tax[,123:128]
+dim(tb16_class)
+tb16_class[1:5,1:6]
+
+#table with occurence data alone
+tb16_tax_occur <- tb16_tax[,1:122]
+dim(tb16_tax_occur) # 960 122
+tb16_tax_occur[1:5,1:5]
+
+amplicons_per_sample_tb16<-colSums(tb16_tax_occur)
+amplicons_per_sample_tb16[which(colSums(tb16_tax_occur)<5836)]
+# samples st122, st124, st137 and st144 have less than 5836 reads.
+
+#remove samples with less than 5836 reads
+tb16_tax_occur_min5836 <- tb16_tax_occur[,colSums(tb16_tax_occur) >= 5836]
+dim(tb16_tax_occur_min5836)
+
+#remove samples with omitted in MP_SRF_16S_amplicons_tax dataset (so that we can compare the relative abundance of 16S and 16S OTUs considering the same samples)
+tb16_tax_occur_min5836<-subset(tb16_tax_occur_min5836, select=-c(st054))
+dim(tb16_tax_occur_min5836)
+
+#let's check if we loose any OTU when excluding the mentioned stations.
+tb16_tax_occur_min5836_no_cero<-tb16_tax_occur_min5836[,-(which(colSums(tb16_tax_occur_min5836)==0))]
+dim(tb16_tax_occur_min5836_no_cero)
+```
+
+Table dimensions and content outline:
+
+```{r starting_dataset_16S, echo=FALSE}
+dim(tb16_tax_occur_min5836)
+tb16_tax_occur_min5836[1:5,1:5]
+```
+
+Minimum number of reads per station:
+
+```{r reads_per_sample_overview1_16S, echo=1}
+min(colSums(tb16_tax_occur_min5836)) 
+#5836
+```
+
+Maximum number of reads per station:
+
+```{r reads_per_sample_overview2_16S, echo=1}
+max(colSums(tb16_tax_occur_min5836)) 
+# max: 156413
+```
+
+Identification of station with higher number of reads:
+
+```{r reads_per_sample_overview3_16S, echo=TRUE}
+amplicons_per_sample<-colSums(tb16_tax_occur_min5836)
+amplicons_per_sample[which(colSums(tb16_tax_occur_min5836)>150000)]
+```
+
+Overall reads per sample:
+
+``` {r reads_per_sample_overview4_16S, echo=FALSE}
+plot(sort(colSums(tb16_tax_occur_min5836)), pch=19, xlab="sample", ylab="reads per sample", cex=0.9)
+```
+
+
+## 2.2) Normalization
+
+Let's normalize the original dataset by randomly subsampling 5836 reads in each station:
+
+``` {r species_richness_rarefaction1_16S, echo=TRUE}
+library(vegan)
+tb16_tax_occur_min5836_t<-t(tb16_tax_occur_min5836)
+tb16_tax_occur_ss5836<-rrarefy(tb16_tax_occur_min5836_t, 5836)
+```
+
+The normalized table shows the following dimensions and format:
+
+```{r species_richness_rarefaction2_16S, echo=FALSE}
+dim(tb16_tax_occur_ss5836)
+tb16_tax_occur_ss5836[1:5,1:5]
+```
+
+Its content fits with the expected normalization values (5836 reads per station):
+
+``` {r species_richness_rarefaction3_16S, echo=TRUE}
+rowSums(tb16_tax_occur_ss5836)
+```
+
+Let's check out how many OTUs don't appear in the new table:
+
+```{r species_richness_rarefaction4_16S, echo=1:5}
+length(which(colSums(tb16_tax_occur_ss5836)==0)) 
+```
+
+There are 54 OTUs that don't show any occurrence in the normalized data. Let's remove them from the table and take a look at its final dimensions:
+
+```{r species_richness_rarefaction5_16S, echo=1:3}
+tb16_tax_occur_ss5836_no_cero<-tb16_tax_occur_ss5836[,-(which(colSums(tb16_tax_occur_ss5836)==0))]
+dim(tb16_tax_occur_ss5836_no_cero)
+
+#the final dimensions of the normalized table are 123 27067.
+#939 + 54 = 993
+```
+
+Datasets summary:
+dim(tb16_tax) --> 993 128
+dim(tb16_tax_occur) --> 960 122
+dim(tb16_tax_occur_ss5836_no_cero) --> 117 909
+
+
+
+## 2.3) General community analysis
+
+### 2.3.1) Richness and evenness (Shannon index)
+
+```{r shannon_index1_16S, echo=FALSE}
+tb16_tax_occur_ss5836_div <- diversity(tb16_tax_occur_ss5836_no_cero, index="shannon")
+```
+
+Most of the samples take Shannon Index values between 5.5 and 6:
+
+```{r shannon_index2_16S, echo=FALSE}
+boxplot(tb16_tax_occur_ss5836_div, pch=19, main="Shannon's index of diversity")
+plot(sort(tb16_tax_occur_ss5836_div), pch=19, main="Shannon's index of diversity")
+```
+
+### 2.3.2) Richness: OTU number
+
+```{r richness_otu_no1_16S, echo=FALSE}
+OTUs_per_sample_16S_tax_occur_ss5836<-specnumber(tb16_tax_occur_ss5836_no_cero)
+```
+
+Lowest number of OTUs per sample:
+
+```{r richness_otu_no2_16S, echo=FALSE}
+min(OTUs_per_sample_16S_tax_occur_ss5836)
+```
+
+Maximum number of OTUs per sample:
+
+```{r richness_otu_no3_16S, echo=FALSE}
+max(OTUs_per_sample_16S_tax_occur_ss5836)
+```
+
+In most of the samples, we can identify between 1000 and 1300 OTUs:
+
+```{r richness_otu_no4_16S, echo=TRUE}
+plot(sort(OTUs_per_sample_16S_tax_occur_ss5836), pch=19)
+boxplot(OTUs_per_sample_16S_tax_occur_ss5836, pch=19)
+```
+
+### 2.3.3) Index of evenness
+
+#### 2.3.3.1) Pielou's index
+
+```{r pielou_index_of_evenness1_16S, echo=TRUE}
+pielou_evenness_16S_tax_occur_ss5836 <- tb16_tax_occur_ss5836_div/log(OTUs_per_sample_16S_tax_occur_ss5836)
+```
+
+The Pielou index (constrained between 0 and 1) takes values closer to 1 as the variation of species proportion in a sample decreases. Most of the samples get values between 0.8 and 0.9, meaning that the numerical composition of different OTUs in a sample is highly similar:
+
+```{r pielou_index_of_evenness2_16S, echo=TRUE}
+plot(sort(pielou_evenness_16S_tax_occur_ss5836), pch=19)
+boxplot(pielou_evenness_16S_tax_occur_ss5836, pch=19)
+```
+
+The OTU_2, with 27292 reads, is the most abundant in the overall dataset:
+
+```{r OTUs_overall_abundance_16S, echo=TRUE}
+head(sort(colSums(tb16_tax_occur_ss5836_no_cero), decreasing=T), n=10L)
+```
+
+Most of the OTUs show very few occurrences; the plot suggests that we will probably be able to identify a significant ammount of rare otus:
+
+```{r OTUs_overall_abundance2_16S, echo=TRUE}
+plot(log(sort(colSums(tb16_tax_occur_ss5836_no_cero), decreasing=T)), pch=19)
+```
+
+<!---
+#### 2.3.3.2) Sads
+library(sads)
+?sads
+--->
+
+### 2.3.4) Abundance Models
+#### 2.3.4.1) Rank-Abundance or Dominance/Diversity Model ("radfit")
+
+The OTUs abundance distribution fits relativelly close to log-normal model. 
+
+```{r radfit_16S, echo=FALSE}
+#?radfit
+#otu_tb16_t[1:5,1:5]
+
+tb16_tax_occur_min5836_radfit<-radfit(colSums(tb16_tax_occur_min5836_t))
+plot(tb16_tax_occur_min5836_radfit)
+```
+
+#### 2.3.4.2) Preston's Lognormal Model
+
+According to Preston's lognormal model fit into species frequencies groups, we're missing ~3226 species:
+
+```{r preston_model1_16S, echo=T}
+tb16_tax_occur_ss5836_prestonfit<-prestonfit(colSums(tb16_tax_occur_min5836_t))
+plot(tb16_tax_occur_ss5836_prestonfit, main="Pooled species")
+
+veiledspec(tb16_tax_occur_ss5836_prestonfit)
+```
+
+When computing Prestons' lognormal model fit without pooling data into groups, we seem to miss ~3055 species:
+
+```{r preston_model2_16S, echo=4}
+tb16_tax_occur_ss5836_dist_all<-prestondistr(colSums(tb16_tax_occur_min5836_t))
+plot(tb16_tax_occur_ss5836_prestonfit, main="All malaspina")
+lines(tb16_tax_occur_ss5836_dist_all, line.col="blue3")
+
+veiledspec(tb16_tax_occur_ss5836_dist_all)
+```
+
+<!---
+### 2.3.5) Rarefaction curve
+
+(To be computed)
+
+```{r rarefraction_curve_16S, echo=TRUE}
+#?rarecurve
+
+#str(colSums(otu_tb16_t))
+
+#otus_tb16_colsums<-colSums(otu_tb16_t)
+
+#str(otus_tb16_colsums)
+#otu_tb16_colsums<-as.matrix(otu_tb16_colsums)
+
+#otu_tb16_colsums<-t(otu_tb16_colsums)
+
+#otu_tb16_colsums[,1:3]
+
+#rarecurve(otu_tb16_colsums, step = 1, 50000, xlab = "Sample Size", ylab = "OTUs", label = TRUE)
+#rarecurve(colSums(otu_tb16_t), step = 1, 50000, xlab = "Sample Size", ylab = "OTUs", label = TRUE)
+```
+--->
+
+### 2.3.6) Beta diversity
+
+#### 2.3.6.1) Dissimilarity matrix using Bray-Curtis index:
+
+The Bray-Curtis dissimilarity, constrained between 0 (minimum distance) and 1 (highest dissimilarity) allows us to quantify the differences between samples according to the composition and relative abundance of their OTUs. In our dataset, most of the samples pairs take dissimilarity values between between 0.7 and 0.8, meaning that their composition is substantially different.
+
+```{r beta_div1_16S, echo=FALSE}
+#?vegdist
+tb16_tax_occur_ss5836_no_cero.bray<-vegdist(tb16_tax_occur_ss5836_no_cero, method="bray")
+boxplot(tb16_tax_occur_ss5836_no_cero.bray, main="Bray-Curtis dissimilarity matrix")
+```
+
+#### 2.3.6.2) Hierarchical clustering
+
+The only relatively evident cluster we can distinguish in the dendogram stands out in the very left side of the plot. 
+
+(To be done: assign Longhurst provinces information to each station and check if any of the central clusters is meaningful regarding to the samples' geographical ubication)
+
+```{r beta_div2_16S, echo=FALSE}
+#UPGMA
+tb16_tax_occur_ss5836_no_cero.upgma<-hclust(tb16_tax_occur_ss5836_no_cero.bray, "average")
+plot(tb16_tax_occur_ss5836_no_cero.upgma, cex=.35, main="Samples Hierarchical Clustering")
+```
+
+#### 2.3.6.3) Non-metric multidimensional scaling
+
+We can identify a prominent group in the central part of the NMDS plot and a few outliers in the middle-left edge of the plot. The stress parameter takes a value below 0.3, suggesting that the plot is acceptable. 
+
+```{r monoNMDS_16S, echo=F}
+#NMDS
+tb16_tax_occur_ss5836_no_cero.nmds<-monoMDS(tb16_tax_occur_ss5836_no_cero.bray)
+tb16_tax_occur_ss5836_no_cero.nmds
+plot(tb16_tax_occur_ss5836_no_cero.nmds, main="monoMDs method")
+```
+
+When implementing a most robut function for computing NMDS plots, the result is quiet the same:
+
+```{r metaNMDS_16S, echo=F}
+tb16_tax_occur_ss5836_no_cero.meta_nmds<-metaMDS(tb16_tax_occur_ss5836_no_cero.bray)
+plot(tb16_tax_occur_ss5836_no_cero.meta_nmds, main="metaMDS method")
+```
+
+## 2.4) Geographical analysis
+
+```{r load_geo_data_16S, echo=F, results="hide", message=F}
+#load geographical ubication of stations and sort according to otu_tb16 stations sequence.
+MP_geo_16S<-read.table(file="/home/laura/Documents/TFM/home/data/MALASPINA/mp_surface_ubication_stationname_sorted_filtered.txt", sep="\t", header=T)
+
+row.names(MP_geo_16S)<-MP_geo_16S[,1]
+MP_geo_16S_sorted<-MP_geo_16S[row.names(tb16_tax_occur_ss5836_no_cero),]
+
+dim(MP_geo_16S_sorted)
+MP_geo_16S_sorted[1:5,1:5]
+tb16_tax_occur_ss5836_no_cero[1:5,1:5]
+
+#read lat-long in decimal degrees and translate into distance in km.
+library(fossil)
+
+#select only columns containing info about station, latitude and longitude.
+MP_geo_16S_sorted_v2<-create.lats(MP_geo_16S_sorted, loc="OTUId", long="long", lat="lat")
+head(MP_geo_16S_sorted)
+
+#create a distance matrix (lower triangle) between a list of points.
+geo_distances_MP_16S<-earth.dist(MP_geo_16S_sorted_v2, dist = TRUE)
+head(geo_distances_MP_16S)
+dim(geo_distances_MP_16S)
+
+geo_distances_MP_16S<-as.matrix(geo_distances_MP_16S)
+dim(geo_distances_MP_16S)
+
+#geo distances dataset ready to use "geo_distances_MP_16S"
+```
+
+Working datasets:
+
+1) Community matrix: tb16_tax_occur_ss5836_no_cero
+
+```{r working_datasets1_16S, echo=T}
+dim(tb16_tax_occur_ss5836_no_cero)
+tb16_tax_occur_ss5836_no_cero[1:5, 1:5]
+```
+
+2) Community Bray-Curtis: tb16_tax_occur_ss5836_no_cero.bray
+
+```{r working_datasets2_16S, echo=2}
+dim(tb16_tax_occur_ss5836_no_cero.bray)
+tb16_tax_occur_ss5836_no_cero.bray<-as.matrix(tb16_tax_occur_ss5836_no_cero.bray)
+```
+
+3) Stations distances in km: geo_distances_MP_16S
+
+```{r working_datasets3_16S, echo=T}
+dim(geo_distances_MP_16S)
+```
+
+Communities quickly change their composition across geographical distances:
+
+```{r working_datasets4_16S, echo=T}
+plot(geo_distances_MP_16S, tb16_tax_occur_ss5836_no_cero.bray, pch=19, cex=0.4, xlab="Geopgraphical distances", ylab="Bray-Curtis dissimilarities")
+```
+
+### 2.4.1) Mantel correlograms
+
+Mantel statistic is -significantlly- so low, meaning that the correlation between samples dissimilarity and geographical distances is weak.
+
+```{r mantel_correlogram1_16S, echo=T}
+mantel(geo_distances_MP_16S, tb16_tax_occur_ss5836_no_cero.bray)
+```
+
+Maximum distance between samples:
+
+```{r mantel_correlogram2_16S, echo=F}
+max(geo_distances_MP_16S)
+```
+
+Minimum distance between samples:
+
+```{r mantel_correlogram3_16S, echo=F}
+min(geo_distances_MP_16S)
+```
+
+Correlograms:
+
+```{r mantel_correlogram4_16S, echo=T}
+MP_16s_ss5836_mantel_correl_by_1000km<-mantel.correlog(tb16_tax_occur_ss5836_no_cero.bray, D.geo=geo_distances_MP_16S, break.pts=seq(0,20000, by=1000))
+plot(MP_16s_ss5836_mantel_correl_by_1000km)
+
+MP_16s_ss5836_mantel_correl_by_100km<-mantel.correlog(tb16_tax_occur_ss5836_no_cero.bray, D.geo=geo_distances_MP_16S, break.pts=seq(0,20000, by=100))
+plot(MP_16s_ss5836_mantel_correl_by_100km)
+```
+
+## 2.5) Abundance vs. occurence
+
+```{r OTUs_mean_relative_abund_16S, echo=F, results="hide"}
+tb16_tax_occur_ss5836_no_cero[1:5,1:5]
+tb16_tax_occur_ss5836_no_cero_t<-t(tb16_tax_occur_ss5836_no_cero)
+
+colSums(tb16_tax_occur_ss5836_no_cero_t)
+
+#local abundance percentage
+tb16_tax_occur_ss5836_no_cero_t.rabund<-tb16_tax_occur_ss5836_no_cero_t/5836
+
+colSums(tb16_tax_occur_ss5836_no_cero_t.rabund)
+tb16_tax_occur_ss5836_no_cero_t.rabund[1:5,1:5]
+
+#OTUs mean relative abundance
+tb16_tax_occur_ss5836_no_cero_t.rabund_means<-rowMeans(tb16_tax_occur_ss5836_no_cero_t.rabund) 
+tb16_tax_occur_ss5836_no_cero_t.rabund_means<-as.data.frame(tb16_tax_occur_ss5836_no_cero_t.rabund_means)
+
+head(tb16_tax_occur_ss5836_no_cero_t.rabund_means)
+```
+
+```{r OTUs_occurence_16S, echo=F, results='hide'}
+tb16_tax_occur_ss5836_no_cero_t.rabund.occur<-tb16_tax_occur_ss5836_no_cero_t.rabund
+tb16_tax_occur_ss5836_no_cero_t.rabund.occur[tb16_tax_occur_ss5836_no_cero_t.rabund.occur>0]<-1
+tb16_tax_occur_ss5836_no_cero_t.rabund.occur[1:5,1:5] ### presence - absence table
+
+#percentage of occurence in overall stations
+tb16_tax_occur_ss5836_no_cero_t.rabund_means.occurence_perc<-as.data.frame(100*(rowSums(tb16_tax_occur_ss5836_no_cero_t.rabund.occur)/117))
+
+str(tb16_tax_occur_ss5836_no_cero_t.rabund_means.occurence_perc)
+```
+
+```{r merge_rabund_peroccur_16S, echo=F, results='hide'}
+otu_tb16_ss5836_rabund_percoccur<-merge(tb16_tax_occur_ss5836_no_cero_t.rabund_means,tb16_tax_occur_ss5836_no_cero_t.rabund_means.occurence_perc, by="row.names")
+
+colnames(otu_tb16_ss5836_rabund_percoccur)<-c("OTUs","mean_rabund","perc_occur")
+otu_tb16_ss5836_rabund_percoccur[1:5,]
+
+row.names(otu_tb16_ss5836_rabund_percoccur)<-otu_tb16_ss5836_rabund_percoccur[,1]
+otu_tb16_ss5836_rabund_percoccur<-otu_tb16_ss5836_rabund_percoccur[,-1]
+otu_tb16_ss5836_rabund_percoccur[1:5,]
+```
+
+In the following plot, we can appreciate the OTUs distribution according to their percentage of occurence and relative abundance. The red line keeps up OTUs that occur in more than 80% of the samples, the green line limits regionally rare OTUs (< 0.001%), and the blue one restricts regionally abundant OTUs (> 0.1%).
+
+```{r abund_vs_occurence_table_16S, echo=F}
+plot(otu_tb16_ss5836_rabund_percoccur$mean_rabund,otu_tb16_ss5836_rabund_percoccur$perc_occur, log="x", pch=19, cex=0.8, xlab="Mean relative abundance", ylab="Percentage of occurence")
+abline(h=80, col="red") #occurence higher than 80%
+abline(v=0.00001, col="green") #rare OTUs
+abline(v=0.001, col="blue") #cosmopolitan OTUs
+
+#Conventional limits:
+#Regionally rare     = 0.00001
+#Regionally abundant = 0.001
+```
+
+Regionally abundant OTUs (relative abundance over 0.1%):
+
+```{r abundant_OTUs_16S, echo=7}
+#regionally abundant
+tb16_ss5836_abundant<-otu_tb16_ss5836_rabund_percoccur[otu_tb16_ss5836_rabund_percoccur$mean_rabund > 0.001,]
+
+tb16_ss5836_abundant_sorted<-tb16_ss5836_abundant[order(tb16_ss5836_abundant$mean_rabund, tb16_ss5836_abundant$perc_occur, decreasing = T), c(1,2)]
+
+tb16_ss5836_abundant_sorted
+dim(tb16_ss5836_abundant_sorted)
+```
+
+Proportion of regionally abundant OTUs (%):
+
+```{r abundant_OTUs2_16S, echo=F}
+#there are 83 regionally abundant OTUs.
+(162/25191)*100 # = 7.29% of the OTUs are regionally abundant
+
+#length(row.names(otu_tb16_ss5836_rabund_percoccur[otu_tb16_ss5836_rabund_percoccur$mean_rabund > 0.001,])) # 83 OTUs
+#row.names(otu_tb16_ss5836_rabund_percoccur[otu_tb16_ss5836_rabund_percoccur$mean_rabund > 0.001,])
+```
+
+Cosmopolitan OTUs (relative abundance over 0.1% and occurence in more than 80% of samples):
+
+```{r select_cosmopolitan_16S, echo=6}
+otu_tb16_ss5836_rabund_cosm<-otu_tb16_ss5836_rabund_percoccur[otu_tb16_ss5836_rabund_percoccur$mean_rabund > 0.001,]
+otu_tb16_ss5836_rabund_poccur_cosm<-otu_tb16_ss5836_rabund_cosm[otu_tb16_ss5836_rabund_cosm$perc_occur > 80,]
+otu_tb16_ss5836_cosmop_sorted<-otu_tb16_ss5836_rabund_poccur_cosm[order(otu_tb16_ss5836_rabund_poccur_cosm$perc_occur, otu_tb16_ss5836_rabund_poccur_cosm$mean_rabund, decreasing = T), c(1,2)]
+
+otu_tb16_ss5836_cosmop_sorted
+dim(otu_tb16_ss5836_cosmop_sorted)
+```
+
+Proportion of cosmopolitan OTUs (%):
+
+```{r percentage_cosmopolitan_16S, echo=F}
+(64/25191)*100
+```
+
+Number and proportion (%) of rare OTUs:
+
+```{r rare_OTUs_16S, echo=1}
+dim(otu_tb16_ss5836_rabund_percoccur[otu_tb16_ss5836_rabund_percoccur$mean_rabund < 0.00001 & otu_tb16_ss5836_rabund_percoccur$mean_rabund >0,])
+ 
+(16551/25191)*100 # = 28.56% of the OTUs are regionally rare
+```
+
+<!---
+```{r otu_col_chech_16S, echo = T}
+dim(otu_tb16_ss5836_rabund_percoccur)
+dim(tb16_tax_occur_min5836)
+
+#rare OTUs:
+# length(row.names(otu_tb16_ss5836_rabund_percoccur[otu_tb16_ss5836_rabund_percoccur$mean_rabund < 0.00001 & otu_tb16_ss5836_rabund_percoccur$mean_rabund >0 ,])) # 325 OTUs
+```
+--->
+
+## 2.6) Taxonomic composition analysis
+
+### 2.6.1) Normalized data
+
+#### 2.6.1.1) Absolute values
+
+Let's add the taxonomic classification to the left OTUs by merging "tb16_tax_occur_ss5836_no_cero" with "tb16_tax".
+
+```{r merge_tables_16S, echo=FALSE}
+tb16_tax_occur_ss5836_no_cero_t<-t(tb16_tax_occur_ss5836_no_cero)
+tb16_ss5836_tax<-merge(tb16_tax_occur_ss5836_no_cero_t,tb16_class, by="row.names")
+
+dim(tb16_ss5836_tax)
+tb16_ss5836_tax[1:5,1:5]
+
+#fix OTU_no as new row
+rownames(tb16_ss5836_tax)=tb16_ss5836_tax$Row.names
+
+#add OTU_no as rowname
+rownames.tb16_ss5836_tax<-tb16_ss5836_tax[,1]
+tb16_ss5836_tax<-tb16_ss5836_tax[,-1]
+#colnames(tb16_ss5836_tax, do.NULL=F)
+
+dim(tb16_ss5836_tax)
+tb16_ss5836_tax[1:5, 1:5]
+
+#sort by OTU_no (split rowname, introduce no. into column "OTU_no" and sort)
+tb16_ss5836_tax["OTU_no"] <- NA
+tb16_ss5836_tax$OTU_no <- sapply(strsplit(rownames(tb16_ss5836_tax),split= "\\_"),'[',2)
+tb16_ss5836_tax$OTU_no <- as.numeric(as.character(tb16_ss5836_tax$OTU_no))
+tb16_ss5836_tax_sorted<-tb16_ss5836_tax[order(tb16_ss5836_tax$OTU_no, decreasing = FALSE), ]
+
+dim(tb16_ss5836_tax_sorted)
+tb16_ss5836_tax_sorted[1:5,122:124]
+```
+
+```{r select_phototrophs_16S2, echo=FALSE}
+tb16_bacteria <- tb16_ss5836_tax_sorted[which(tb16_ss5836_tax_sorted$class_A != "Bolidophyceae" & tb16_ss5836_tax_sorted$class_A != "Chlorarachniophyta" & tb16_ss5836_tax_sorted$class_A != "Cryptophyceae" & tb16_ss5836_tax_sorted$class_A != "Pelagophyceae" & tb16_ss5836_tax_sorted$class_A != "Rappemonad" & tb16_ss5836_tax_sorted$class_A != "Cryptomonadales" & tb16_ss5836_tax_sorted$class_A != "Bacillariophyta" & tb16_ss5836_tax_sorted$class_A != "Dictyochophyceae" & tb16_ss5836_tax_sorted$class_A != "Mamiellophyceae" & tb16_ss5836_tax_sorted$class_A != "Prasinophyceae" & tb16_ss5836_tax_sorted$class_A != "Eustigmatales" & tb16_ss5836_tax_sorted$class_A != "Trebouxiophyceae" & tb16_ss5836_tax_sorted$class_A != "Prymnesiophyceae" & tb16_ss5836_tax_sorted$class_A != "other_plastids"),]
+
+tb16_protists <- tb16_ss5836_tax_sorted[which(tb16_ss5836_tax_sorted$class_A != "heterotrophic_bacteria" &  tb16_ss5836_tax_sorted$class_A != "Cyanobacteria"),]
+
+dim(tb16_protists)
+dim(tb16_bacteria)
+tb16_protists[1:5,117:124]
+tb16_bacteria[1:5,117:124]
+```
+
+```{r aggregate_16S_protists, echo=TRUE}
+class_summary_reads_per_class_16S_protists<-aggregate(rowSums(tb16_protists[1:117]), list(tb16_protists$class_A), sum)
+# count the different groups
+
+class_summary_otus_per_class_16S_protists<-aggregate(rowSums(tb16_protists[1:117]), list(tb16_protists$class_A), length)
+
+## READS PER CLASS ##
+attach(class_summary_reads_per_class_16S_protists)
+class_summary_reads_per_class_16S_protists_order<-class_summary_reads_per_class_16S_protists[order(-x),]
+detach(class_summary_reads_per_class_16S_protists)
+class_summary_reads_per_class_16S_protists_order
+
+#fix column names
+row.names(class_summary_reads_per_class_16S_protists_order)<-class_summary_reads_per_class_16S_protists_order[,1]
+class_summary_reads_per_class_16S_protists_order<-class_summary_reads_per_class_16S_protists_order[c(-1)]
+colnames(class_summary_reads_per_class_16S_protists_order)<-c("reads_per_class")
+
+
+## OTUs PER CLASS ##
+attach(class_summary_otus_per_class_16S_protists)
+class_summary_otus_per_class_16S_protists_order<-class_summary_otus_per_class_16S_protists[order(-x),]
+detach(class_summary_otus_per_class_16S_protists)
+class_summary_otus_per_class_16S_protists_order
+
+row.names(class_summary_otus_per_class_16S_protists_order)<-class_summary_otus_per_class_16S_protists_order[,1]
+class_summary_otus_per_class_16S_protists_order<-class_summary_otus_per_class_16S_protists_order[c(-1)]
+colnames(class_summary_otus_per_class_16S_protists_order)<-c("OTUs_per_class")
+```
+
+```{r aggregate_16S_bacteria, echo=TRUE}
+class_summary_reads_per_class_16S_bacteria<-aggregate(rowSums(tb16_bacteria[1:117]), list(tb16_bacteria$class_A), sum)
+# count the different groups
+
+class_summary_otus_per_class_16S_bacteria<-aggregate(rowSums(tb16_bacteria[1:117]), list(tb16_bacteria$class_A), length)
+
+## READS PER CLASS ##
+attach(class_summary_reads_per_class_16S_bacteria)
+class_summary_reads_per_class_16S_bacteria_order<-class_summary_reads_per_class_16S_bacteria[order(-x),]
+detach(class_summary_reads_per_class_16S_bacteria)
+class_summary_reads_per_class_16S_bacteria_order
+
+#fix column names
+row.names(class_summary_reads_per_class_16S_bacteria_order)<-class_summary_reads_per_class_16S_bacteria_order[,1]
+class_summary_reads_per_class_16S_bacteria_order<-class_summary_reads_per_class_16S_bacteria_order[c(-1)]
+colnames(class_summary_reads_per_class_16S_bacteria_order)<-c("reads_per_class")
+
+
+## OTUs PER CLASS ##
+attach(class_summary_otus_per_class_16S_bacteria)
+class_summary_otus_per_class_16S_bacteria_order<-class_summary_otus_per_class_16S_bacteria[order(-x),]
+detach(class_summary_otus_per_class_16S_bacteria)
+class_summary_otus_per_class_16S_bacteria_order
+
+row.names(class_summary_otus_per_class_16S_bacteria_order)<-class_summary_otus_per_class_16S_bacteria_order[,1]
+class_summary_otus_per_class_16S_bacteria_order<-class_summary_otus_per_class_16S_bacteria_order[c(-1)]
+colnames(class_summary_otus_per_class_16S_bacteria_order)<-c("OTUs_per_class")
+```
+
+```{r count_samples_per_group_16S_protists, echo=FALSE}
+#create a table per group and count in how many samples they occur. 
+other_plastids_tb <- tb16_protists[which(tb16_protists$class_A == "other_plastids"),]
+other_plastids_tb[1:5,1:5]
+other_plastids_tb_occur <- other_plastids_tb[,1:117]
+other_plastids_tb_occur[1:5,1:5]
+dim(other_plastids_tb_occur)
+length(other_plastids_tb_occur[,colSums(other_plastids_tb_occur) > 0])
+
+Prymnesiophyceae_tb <- tb16_protists[which(tb16_protists$class_A == "Prymnesiophyceae"),]
+Prymnesiophyceae_tb_occur <- Prymnesiophyceae_tb[,1:117]
+length(Prymnesiophyceae_tb_occur[,colSums(Prymnesiophyceae_tb_occur) > 0])
+
+Prasinophyceae_tb <- tb16_protists[which(tb16_protists$class_A == "Prasinophyceae"),]
+Prasinophyceae_tb_occur <- Prasinophyceae_tb[,1:117]
+length(Prasinophyceae_tb_occur[,colSums(Prasinophyceae_tb_occur) > 0])
+
+Dictyochophyceae_tb <- tb16_protists[which(tb16_protists$class_A == "Dictyochophyceae"),]
+Dictyochophyceae_tb_occur <- Dictyochophyceae_tb[,1:117]
+length(Dictyochophyceae_tb_occur[,colSums(Dictyochophyceae_tb_occur) > 0])
+
+Mamiellophyceae_tb <- tb16_protists[which(tb16_protists$class_A == "Mamiellophyceae"),]
+Mamiellophyceae_tb_occur <- Mamiellophyceae_tb[,1:117]
+length(Mamiellophyceae_tb_occur[,colSums(Mamiellophyceae_tb_occur) > 0])
+
+Bacillariophyta_tb <- tb16_protists[which(tb16_protists$class_A == "Bacillariophyta"),]
+Bacillariophyta_tb_occur <- Bacillariophyta_tb[,1:117]
+length(Bacillariophyta_tb_occur[,colSums(Bacillariophyta_tb_occur) > 0])
+
+Bolidophyceae_tb <- tb16_protists[which(tb16_protists$class_A == "Bolidophyceae"),]
+Bolidophyceae_tb_occur <- Bolidophyceae_tb[,1:117]
+length(Bolidophyceae_tb_occur[,colSums(Bolidophyceae_tb_occur) > 0])
+
+Chlorarachniophyta_tb <- tb16_protists[which(tb16_protists$class_A == "Chlorarachniophyta"),]
+Chlorarachniophyta_tb_occur <- Chlorarachniophyta_tb[,1:117]
+length(Chlorarachniophyta_tb_occur[,colSums(Chlorarachniophyta_tb_occur) > 0])
+
+Cryptomonadales_tb <- tb16_protists[which(tb16_protists$class_A == "Cryptomonadales"),]
+Cryptomonadales_tb_occur <- Cryptomonadales_tb[,1:117]
+length(Cryptomonadales_tb_occur[,colSums(Cryptomonadales_tb_occur) > 0])
+
+Pelagophyceae_tb <- tb16_protists[which(tb16_protists$class_A == "Pelagophyceae"),]
+Pelagophyceae_tb_occur <- Pelagophyceae_tb[,1:117]
+length(Pelagophyceae_tb_occur[,colSums(Pelagophyceae_tb_occur) > 0])
+
+Rappemonad_tb <- tb16_protists[which(tb16_protists$class_A == "Rappemonad"),]
+Rappemonad_tb_occur <- Rappemonad_tb[,1:117]
+length(Rappemonad_tb_occur[,colSums(Rappemonad_tb_occur) > 0])
+```
+
+```{r count_samples_per_group_16S_bacteria, echo=FALSE}
+#create a table per group and count in how many samples they occur. 
+heterotrophic_bacteria_tb <- tb16_bacteria[which(tb16_bacteria$class_A == "heterotrophic_bacteria"),]
+heterotrophic_bacteria_tb_occur <- heterotrophic_bacteria_tb[,1:117]
+length(heterotrophic_bacteria_tb_occur[,colSums(heterotrophic_bacteria_tb_occur) > 0])
+
+Cyanobacteria_tb <- tb16_bacteria[which(tb16_bacteria$class_A == "Cyanobacteria"),]
+Cyanobacteria_tb_occur <- Cyanobacteria_tb[,1:117]
+length(Cyanobacteria_tb_occur[,colSums(Cyanobacteria_tb_occur) > 0])
+```
+
+```{r create_table_merging_#OTUs_#reads_#samples_protists, echo=FALSE}
+tb16S_protists_OTUs_reads_samples <- merge(class_summary_reads_per_class_16S_protists_order, class_summary_otus_per_class_16S_protists_order, by="row.names")
+
+row.names(tb16S_protists_OTUs_reads_samples)<-tb16S_protists_OTUs_reads_samples[,1]
+tb16S_protists_OTUs_reads_samples<-tb16S_protists_OTUs_reads_samples[,-1]
+colnames(tb16S_protists_OTUs_reads_samples)<-c("reads_per_class","OTUs_per_class")
+tb16S_protists_OTUs_reads_samples[1:5,1:2]
+
+tb16S_protists_OTUs_reads_samples<-tb16S_protists_OTUs_reads_samples[order(tb16S_protists_OTUs_reads_samples$reads_per_class, tb16S_protists_OTUs_reads_samples$OTUs_per_class, decreasing = T), c(1,2)]
+
+#add no. of samples per class
+tb16S_protists_OTUs_reads_samples["samples_per_class"] <- NA
+tb16S_protists_OTUs_reads_samples$samples_per_class<-c(117,117,114,98,31,26,21,27,13,13,2)
+
+#table without "other_plastids"
+tb16S_protists_OTUs_reads_samples <- tb16S_protists_OTUs_reads_samples[-2,]
+```
+
+```{r create_table_merging_#OTUs_#reads_#samples_bacteria, echo=FALSE}
+tb16S_bacteria_OTUs_reads_samples <- merge(class_summary_reads_per_class_16S_bacteria_order, class_summary_otus_per_class_16S_bacteria_order, by="row.names")
+
+row.names(tb16S_bacteria_OTUs_reads_samples)<-tb16S_bacteria_OTUs_reads_samples[,1]
+tb16S_bacteria_OTUs_reads_samples<-tb16S_bacteria_OTUs_reads_samples[,-1]
+colnames(tb16S_bacteria_OTUs_reads_samples)<-c("reads_per_class","OTUs_per_class")
+tb16S_bacteria_OTUs_reads_samples[1:5,1:2]
+
+tb16S_bacteria_OTUs_reads_samples<-tb16S_bacteria_OTUs_reads_samples[order(tb16S_bacteria_OTUs_reads_samples$reads_per_class, tb16S_bacteria_OTUs_reads_samples$OTUs_per_class, decreasing = T), c(1,2)]
+
+#add no. of samples per class
+tb16S_bacteria_OTUs_reads_samples["samples_per_class"] <- NA
+tb16S_bacteria_OTUs_reads_samples$samples_per_class<-c(117,117)
+
+#table without "heterotropic_bacteria":
+tb16S_bacteria_OTUs_reads_samples <- tb16S_bacteria_OTUs_reads_samples[-1,]
+```
+
+
+OTUs per class vs. samples in which they occur - PROTISTS [PLOT DESCRIPTION]
+
+```{r stations_vs_OTUs_protists, echo=FALSE}
+otus_vs_samples_plot_protists <- ggplot(tb16S_protists_OTUs_reads_samples, aes(samples_per_class,OTUs_per_class, label = rownames(tb16S_protists_OTUs_reads_samples)))
+otus_vs_samples_plot_protists + geom_point() + geom_text(check_overlap = TRUE,hjust = -0.05, nudge_y = 0.05, size = 3) + scale_x_continuous(limits = c(0, 137)) + labs(title="[7] OTUs per class vs. samples in which they occur", x="samples", y="OTUs") + coord_trans(y = "log10")
+```
+
+Reads per class vs. OTUs per class - PROTISTS [PLOT DESCRIPTION]
+
+```{r OTUs_vs_reads_protists, echo=FALSE}
+otus_vs_samples_plot_protists <- ggplot(tb16S_protists_OTUs_reads_samples, aes(OTUs_per_class, reads_per_class, label = rownames(tb16S_protists_OTUs_reads_samples)))
+otus_vs_samples_plot_protists + geom_point() + geom_text(check_overlap = TRUE,hjust = -0.05, nudge_x = 0.05, size=3) + scale_x_continuous(limits = c(0, 32)) + labs(title="[8] Reads per class vs. OTUs per class", x="OTUs", y="reads") + coord_trans(y = "log10")
+```
+
+OTUs per class vs. samples in which they occur - PROTISTS vs CYANOBACTERIA [PLOT DESCRIPTION]
+
+```{r merge_protists_and_bacteria_tb, echo=FALSE}
+tb16S_protists_plus_bacteria_OTUs_reads_samples<-rbind(tb16S_protists_OTUs_reads_samples,tb16S_bacteria_OTUs_reads_samples)
+```
+
+```{r stations_vs_OTUs_protists_plus_bacteria, echo=FALSE}
+otus_vs_samples_plot_protists_plus_bacteria <- ggplot(tb16S_protists_plus_bacteria_OTUs_reads_samples, aes(samples_per_class,OTUs_per_class, label = rownames(tb16S_protists_plus_bacteria_OTUs_reads_samples)))
+otus_vs_samples_plot_protists_plus_bacteria + geom_point() + geom_text(check_overlap = TRUE,hjust = -0.05, nudge_y = 0.05, size = 3) + scale_x_continuous(limits = c(0, 137)) + labs(title="[9] OTUs per class vs. samples in which they occur", x="samples", y="OTUs")
+```
+
+Reads per class vs. OTUs per class - PROTISTS vs CYANOBACTERIA [PLOT DESCRIPTION]
+
+```{r OTUs_vs_reads_protists_plus_bacteria, echo=FALSE}
+otus_vs_samples_plot_protists_plus_bacteria <- ggplot(tb16S_protists_plus_bacteria_OTUs_reads_samples, aes(OTUs_per_class, reads_per_class, label = rownames(tb16S_protists_plus_bacteria_OTUs_reads_samples)))
+otus_vs_samples_plot_protists_plus_bacteria + geom_point() + geom_text(check_overlap = TRUE,hjust = -0.05, nudge_x = 0.05, size=3) + scale_x_continuous(limits = c(0, 35)) + labs(title="[10] Reads per class vs. OTUs per class", x="OTUs", y="reads") + coord_trans(y = "log10")
+```
+
+#### 2.6.1.2) Relative values
+
+```{r OTUs_vs_reads_protists_relative_values, echo=FALSE}
+
+tb16S_protists_OTUs_reads_samples_rel_abund <- tb16S_protists_OTUs_reads_samples
+
+tb16S_protists_OTUs_reads_samples_rel_abund$reads_per_class<-(tb16S_protists_OTUs_reads_samples_rel_abund$reads_per_class*100)/colSums(tb16S_protists_OTUs_reads_samples)[1]
+tb16S_protists_OTUs_reads_samples_rel_abund$OTUs_per_class<-(tb16S_protists_OTUs_reads_samples_rel_abund$OTUs_per_class*100)/colSums(tb16S_protists_OTUs_reads_samples)[2]
+tb16S_protists_OTUs_reads_samples_rel_abund$samples_per_class<-(tb16S_protists_OTUs_reads_samples_rel_abund$samples_per_class*100)/117
+
+colSums(tb16S_protists_OTUs_reads_samples_rel_abund)
+tb16S_protists_OTUs_reads_samples_rel_abund
+```
+
+OTUs per class vs. samples in which they occur - PROTISTS [PLOT DESCRIPTION]
+
+```{r stations_vs_OTUs_protists_16S, echo=FALSE}
+otus_vs_samples_plot_protists <- ggplot(tb16S_protists_OTUs_reads_samples_rel_abund, aes(samples_per_class,OTUs_per_class, label = rownames(tb16S_protists_OTUs_reads_samples)))
+otus_vs_samples_plot_protists + geom_point() + geom_text(check_overlap = TRUE,hjust = -0.05, nudge_y = 0.05, size = 3) + scale_x_continuous(limits = c(0, 120), breaks=c(25,50,75,100)) + labs(title="[11] OTUs per class vs. samples in which they occur", x="samples (%)", y="OTUs (%)") + coord_trans(y = "log10")
+```
+
+Reads per class vs. OTUs per class - PROTISTS [PLOT DESCRIPTION]
+
+```{r OTUs_vs_reads_protists_16S, echo=FALSE}
+otus_vs_samples_plot_protists <- ggplot(tb16S_protists_OTUs_reads_samples_rel_abund, aes(OTUs_per_class, reads_per_class, label = rownames(tb16S_protists_OTUs_reads_samples)))
+otus_vs_samples_plot_protists + geom_point() + geom_text(check_overlap = TRUE,hjust = -0.05, nudge_x = 0.05, size=3) + scale_x_continuous(limits = c(0, 58)) + labs(title="[12] Reads per class vs. OTUs per class", x="OTUs (%)", y="reads (%)") + coord_trans(y = "log10")
+```
+
+OTUs per class vs. samples in which they occur - PROTISTS vs. CYANOBACTERIA [PLOT DESCRIPTION]
+
+```{r OTUs_vs_reads_protists_plus_bacteria_relative_values, echo=FALSE}
+
+tb16S_protists_plus_bacteria_OTUs_reads_samples_rel_abund<-tb16S_protists_plus_bacteria_OTUs_reads_samples
+
+tb16S_protists_plus_bacteria_OTUs_reads_samples_rel_abund$reads_per_class<-(tb16S_protists_plus_bacteria_OTUs_reads_samples_rel_abund$reads_per_class*100)/colSums(tb16S_protists_plus_bacteria_OTUs_reads_samples)[1]
+
+tb16S_protists_plus_bacteria_OTUs_reads_samples_rel_abund$OTUs_per_class<-(tb16S_protists_plus_bacteria_OTUs_reads_samples_rel_abund$OTUs_per_class*100)/colSums(tb16S_protists_plus_bacteria_OTUs_reads_samples)[2]
+
+tb16S_protists_plus_bacteria_OTUs_reads_samples_rel_abund$samples_per_class<-(tb16S_protists_plus_bacteria_OTUs_reads_samples_rel_abund$samples_per_class*100)/117
+
+colSums(tb16S_protists_plus_bacteria_OTUs_reads_samples_rel_abund)
+tb16S_protists_plus_bacteria_OTUs_reads_samples_rel_abund
+```
+
+```{r stations_vs_OTUs_protists_plus_bacteria_rel_abundance, echo=FALSE}
+otus_vs_samples_plot_protists_plus_bacteria <- ggplot(tb16S_protists_plus_bacteria_OTUs_reads_samples_rel_abund, aes(samples_per_class,OTUs_per_class, label = rownames(tb16S_protists_plus_bacteria_OTUs_reads_samples_rel_abund)))
+otus_vs_samples_plot_protists_plus_bacteria + geom_point() + geom_text(check_overlap = TRUE,hjust = -0.05, nudge_y = 0.05, size = 3) + scale_x_continuous(limits = c(0, 120)) + labs(title="[13] OTUs per class vs. samples in which they occur", x="samples (%)", y="OTUs (%)") + coord_trans(y = "log10")
+```
+
+Reads per class vs. OTUs per class - PROTISTS vs CYANOBACTERIA [PLOT DESCRIPTION]
+
+```{r OTUs_vs_reads_protists_plus_bacteria_rel_abundance, echo=FALSE}
+otus_vs_samples_plot_protists_plus_bacteria <- ggplot(tb16S_protists_plus_bacteria_OTUs_reads_samples_rel_abund, aes(OTUs_per_class, reads_per_class, label = rownames(tb16S_protists_plus_bacteria_OTUs_reads_samples_rel_abund)))
+otus_vs_samples_plot_protists_plus_bacteria + geom_point() + geom_text(check_overlap = TRUE,hjust = -0.05, nudge_x = 0.05, size=3) + scale_x_continuous(limits = c(0, 40)) + labs(title="[14] Reads per class vs. OTUs per class", x="OTUs (%)", y="reads (%)") + coord_trans(y = "log10") 
+```
+
+### 2.6.2) Non-normalized data
+
+```{r merge_tables_16S_non.norm, echo=FALSE}
+tb16_tax_occur_min5836_no_cero_t<-tb16_tax_occur_min5836
+tb16_min5836_tax<-merge(tb16_tax_occur_min5836_no_cero_t,tb16_class, by="row.names")
+
+dim(tb16_min5836_tax)
+tb16_min5836_tax[1:5,1:5]
+
+#fix OTU_no as new row
+rownames(tb16_min5836_tax)=tb16_min5836_tax$Row.names
+
+#add OTU_no as rowname
+rownames.tb16_min5836_tax<-tb16_min5836_tax[,1]
+tb16_min5836_tax<-tb16_min5836_tax[,-1]
+#colnames(tb16_min5836_tax, do.NULL=F)
+
+dim(tb16_min5836_tax)
+tb16_min5836_tax[1:5, 1:5]
+
+#sort by OTU_no (split rowname, introduce no. into column "OTU_no" and sort)
+tb16_min5836_tax["OTU_no"] <- NA
+tb16_min5836_tax$OTU_no <- sapply(strsplit(rownames(tb16_min5836_tax),split= "\\_"),'[',2)
+tb16_min5836_tax$OTU_no <- as.numeric(as.character(tb16_min5836_tax$OTU_no))
+tb16_min5836_tax_sorted<-tb16_min5836_tax[order(tb16_min5836_tax$OTU_no, decreasing = FALSE), ]
+
+dim(tb16_min5836_tax_sorted)
+tb16_min5836_tax_sorted[1:5,122:124]
+```
+
+```{r select_phototrophs_16S_non.norm, echo=FALSE}
+tb16_bacteria_non.norm <- tb16_min5836_tax_sorted[which(tb16_min5836_tax_sorted$class_A != "Bolidophyceae" & tb16_min5836_tax_sorted$class_A != "Chlorarachniophyta" & tb16_min5836_tax_sorted$class_A != "Cryptophyceae" & tb16_min5836_tax_sorted$class_A != "Pelagophyceae" & tb16_min5836_tax_sorted$class_A != "Rappemonad" & tb16_min5836_tax_sorted$class_A != "Cryptomonadales" & tb16_min5836_tax_sorted$class_A != "Bacillariophyta" & tb16_min5836_tax_sorted$class_A != "Dictyochophyceae" & tb16_min5836_tax_sorted$class_A != "Mamiellophyceae" & tb16_min5836_tax_sorted$class_A != "Prasinophyceae" & tb16_min5836_tax_sorted$class_A != "Eustigmatales" & tb16_min5836_tax_sorted$class_A != "Trebouxiophyceae" & tb16_min5836_tax_sorted$class_A != "Prymnesiophyceae" & tb16_min5836_tax_sorted$class_A != "other_plastids"),]
+
+tb16_protists_non.norm <- tb16_min5836_tax_sorted[which(tb16_min5836_tax_sorted$class_A != "heterotrophic_bacteria" & tb16_min5836_tax_sorted$class_A != "Cyanobacteria"),]
+
+dim(tb16_protists_non.norm)
+dim(tb16_bacteria_non.norm)
+tb16_protists_non.norm[1:5,117:124]
+tb16_bacteria_non.norm[1:5,117:124]
+```
+
+```{r aggregate_16S_protists_non.norm, echo=TRUE}
+class_summary_reads_per_class_16S_protists_non.norm<-aggregate(rowSums(tb16_protists_non.norm[1:117]), list(tb16_protists_non.norm$class_A), sum)
+# count the different groups
+
+class_summary_otus_per_class_16S_protists_non.norm<-aggregate(rowSums(tb16_protists_non.norm[1:117]), list(tb16_protists_non.norm$class_A), length)
+
+## READS PER CLASS ##
+attach(class_summary_reads_per_class_16S_protists_non.norm)
+class_summary_reads_per_class_16S_protists_non.norm_order<-class_summary_reads_per_class_16S_protists_non.norm[order(-x),]
+detach(class_summary_reads_per_class_16S_protists_non.norm)
+class_summary_reads_per_class_16S_protists_non.norm_order
+
+#fix column names
+row.names(class_summary_reads_per_class_16S_protists_non.norm_order)<-class_summary_reads_per_class_16S_protists_non.norm_order[,1]
+class_summary_reads_per_class_16S_protists_non.norm_order<-class_summary_reads_per_class_16S_protists_non.norm_order[c(-1)]
+colnames(class_summary_reads_per_class_16S_protists_non.norm_order)<-c("reads_per_class")
+
+
+## OTUs PER CLASS ##
+attach(class_summary_otus_per_class_16S_protists_non.norm)
+class_summary_otus_per_class_16S_protists_non.norm_order<-class_summary_otus_per_class_16S_protists_non.norm[order(-x),]
+detach(class_summary_otus_per_class_16S_protists_non.norm)
+class_summary_otus_per_class_16S_protists_non.norm_order
+
+row.names(class_summary_otus_per_class_16S_protists_non.norm_order)<-class_summary_otus_per_class_16S_protists_non.norm_order[,1]
+class_summary_otus_per_class_16S_protists_non.norm_order<-class_summary_otus_per_class_16S_protists_non.norm_order[c(-1)]
+colnames(class_summary_otus_per_class_16S_protists_non.norm_order)<-c("OTUs_per_class")
+```
+
+```{r aggregate_16S_bacteria_non.norm, echo=TRUE}
+class_summary_reads_per_class_16S_bacteria_non.norm<-aggregate(rowSums(tb16_bacteria_non.norm[1:117]), list(tb16_bacteria_non.norm$class_A), sum)
+# count the different groups
+
+class_summary_otus_per_class_16S_bacteria_non.norm<-aggregate(rowSums(tb16_bacteria_non.norm[1:117]), list(tb16_bacteria_non.norm$class_A), length)
+
+## READS PER CLASS ##
+attach(class_summary_reads_per_class_16S_bacteria_non.norm)
+class_summary_reads_per_class_16S_bacteria_non.norm_order<-class_summary_reads_per_class_16S_bacteria_non.norm[order(-x),]
+detach(class_summary_reads_per_class_16S_bacteria_non.norm)
+class_summary_reads_per_class_16S_bacteria_non.norm_order
+
+#fix column names
+row.names(class_summary_reads_per_class_16S_bacteria_non.norm_order)<-class_summary_reads_per_class_16S_bacteria_non.norm_order[,1]
+class_summary_reads_per_class_16S_bacteria_non.norm_order<-class_summary_reads_per_class_16S_bacteria_non.norm_order[c(-1)]
+colnames(class_summary_reads_per_class_16S_bacteria_non.norm_order)<-c("reads_per_class")
+
+
+## OTUs PER CLASS ##
+attach(class_summary_otus_per_class_16S_bacteria_non.norm)
+class_summary_otus_per_class_16S_bacteria_non.norm_order<-class_summary_otus_per_class_16S_bacteria_non.norm[order(-x),]
+detach(class_summary_otus_per_class_16S_bacteria_non.norm)
+class_summary_otus_per_class_16S_bacteria_non.norm_order
+
+row.names(class_summary_otus_per_class_16S_bacteria_non.norm_order)<-class_summary_otus_per_class_16S_bacteria_non.norm_order[,1]
+class_summary_otus_per_class_16S_bacteria_non.norm_order<-class_summary_otus_per_class_16S_bacteria_non.norm_order[c(-1)]
+colnames(class_summary_otus_per_class_16S_bacteria_non.norm_order)<-c("OTUs_per_class")
+```
+
+```{r count_samples_per_group_16S_protists_non.norm, echo=FALSE}
+#create a table per group and count in how many samples they occur. 
+other_plastids_tb <- tb16_protists_non.norm[which(tb16_protists_non.norm$class_A == "other_plastids"),]
+other_plastids_tb[1:5,1:5]
+other_plastids_tb_occur <- other_plastids_tb[,1:117]
+other_plastids_tb_occur[1:5,1:5]
+dim(other_plastids_tb_occur)
+length(other_plastids_tb_occur[,colSums(other_plastids_tb_occur) > 0])
+
+Prymnesiophyceae_tb <- tb16_protists_non.norm[which(tb16_protists_non.norm$class_A == "Prymnesiophyceae"),]
+Prymnesiophyceae_tb_occur <- Prymnesiophyceae_tb[,1:117]
+length(Prymnesiophyceae_tb_occur[,colSums(Prymnesiophyceae_tb_occur) > 0])
+
+Prasinophyceae_tb <- tb16_protists_non.norm[which(tb16_protists_non.norm$class_A == "Prasinophyceae"),]
+Prasinophyceae_tb_occur <- Prasinophyceae_tb[,1:117]
+length(Prasinophyceae_tb_occur[,colSums(Prasinophyceae_tb_occur) > 0])
+
+Dictyochophyceae_tb <- tb16_protists_non.norm[which(tb16_protists_non.norm$class_A == "Dictyochophyceae"),]
+Dictyochophyceae_tb_occur <- Dictyochophyceae_tb[,1:117]
+length(Dictyochophyceae_tb_occur[,colSums(Dictyochophyceae_tb_occur) > 0])
+
+Mamiellophyceae_tb <- tb16_protists_non.norm[which(tb16_protists_non.norm$class_A == "Mamiellophyceae"),]
+Mamiellophyceae_tb_occur <- Mamiellophyceae_tb[,1:117]
+length(Mamiellophyceae_tb_occur[,colSums(Mamiellophyceae_tb_occur) > 0])
+
+Bacillariophyta_tb <- tb16_protists_non.norm[which(tb16_protists_non.norm$class_A == "Bacillariophyta"),]
+Bacillariophyta_tb_occur <- Bacillariophyta_tb[,1:117]
+length(Bacillariophyta_tb_occur[,colSums(Bacillariophyta_tb_occur) > 0])
+
+Bolidophyceae_tb <- tb16_protists_non.norm[which(tb16_protists_non.norm$class_A == "Bolidophyceae"),]
+Bolidophyceae_tb_occur <- Bolidophyceae_tb[,1:117]
+length(Bolidophyceae_tb_occur[,colSums(Bolidophyceae_tb_occur) > 0])
+
+Chlorarachniophyta_tb <- tb16_protists_non.norm[which(tb16_protists_non.norm$class_A == "Chlorarachniophyta"),]
+Chlorarachniophyta_tb_occur <- Chlorarachniophyta_tb[,1:117]
+length(Chlorarachniophyta_tb_occur[,colSums(Chlorarachniophyta_tb_occur) > 0])
+
+Cryptomonadales_tb <- tb16_protists_non.norm[which(tb16_protists_non.norm$class_A == "Cryptomonadales"),]
+Cryptomonadales_tb_occur <- Cryptomonadales_tb[,1:117]
+length(Cryptomonadales_tb_occur[,colSums(Cryptomonadales_tb_occur) > 0])
+
+Pelagophyceae_tb <- tb16_protists_non.norm[which(tb16_protists_non.norm$class_A == "Pelagophyceae"),]
+Pelagophyceae_tb_occur <- Pelagophyceae_tb[,1:117]
+length(Pelagophyceae_tb_occur[,colSums(Pelagophyceae_tb_occur) > 0])
+
+Rappemonad_tb <- tb16_protists_non.norm[which(tb16_protists_non.norm$class_A == "Rappemonad"),]
+Rappemonad_tb_occur <- Rappemonad_tb[,1:117]
+length(Rappemonad_tb_occur[,colSums(Rappemonad_tb_occur) > 0])
+```
+
+```{r count_samples_per_group_16S_bacteria_non.norm, echo=FALSE}
+#create a table per group and count in how many samples they occur. 
+heterotrophic_bacteria_tb <- tb16_bacteria_non.norm[which(tb16_bacteria_non.norm$class_A == "heterotrophic_bacteria"),]
+heterotrophic_bacteria_tb_occur <- heterotrophic_bacteria_tb[,1:117]
+length(heterotrophic_bacteria_tb_occur[,colSums(heterotrophic_bacteria_tb_occur) > 0])
+
+Cyanobacteria_tb <- tb16_bacteria_non.norm[which(tb16_bacteria_non.norm$class_A == "Cyanobacteria"),]
+Cyanobacteria_tb_occur <- Cyanobacteria_tb[,1:117]
+length(Cyanobacteria_tb_occur[,colSums(Cyanobacteria_tb_occur) > 0])
+```
+
+```{r create_table_merging_#OTUs_#reads_#samples_protists_non.norm, echo=FALSE}
+tb16S_protists_OTUs_reads_samples_non.norm <- merge(class_summary_reads_per_class_16S_protists_non.norm_order, class_summary_otus_per_class_16S_protists_non.norm_order, by="row.names")
+
+row.names(tb16S_protists_OTUs_reads_samples_non.norm)<-tb16S_protists_OTUs_reads_samples_non.norm[,1]
+tb16S_protists_OTUs_reads_samples_non.norm<-tb16S_protists_OTUs_reads_samples_non.norm[,-1]
+colnames(tb16S_protists_OTUs_reads_samples_non.norm)<-c("reads_per_class","OTUs_per_class")
+tb16S_protists_OTUs_reads_samples_non.norm[1:5,1:2]
+
+tb16S_protists_OTUs_reads_samples_non.norm<-tb16S_protists_OTUs_reads_samples_non.norm[order(tb16S_protists_OTUs_reads_samples_non.norm$reads_per_class, tb16S_protists_OTUs_reads_samples_non.norm$OTUs_per_class, decreasing = T), c(1,2)]
+
+#add no. of samples per class
+tb16S_protists_OTUs_reads_samples_non.norm["samples_per_class"] <- NA
+tb16S_protists_OTUs_reads_samples_non.norm$samples_per_class<-c(117,117,114,98,31,26,21,27,13,13,2)
+
+#table without "other_plastids"
+tb16S_protists_OTUs_reads_samples_non.norm <- tb16S_protists_OTUs_reads_samples_non.norm[-2,]
+```
+
+```{r create_table_merging_#OTUs_#reads_#samples_bacteria_non.norm, echo=FALSE}
+tb16S_bacteria_OTUs_reads_samples_non.norm <- merge(class_summary_reads_per_class_16S_bacteria_non.norm_order, class_summary_otus_per_class_16S_bacteria_non.norm_order, by="row.names")
+
+row.names(tb16S_bacteria_OTUs_reads_samples_non.norm)<-tb16S_bacteria_OTUs_reads_samples_non.norm[,1]
+tb16S_bacteria_OTUs_reads_samples_non.norm<-tb16S_bacteria_OTUs_reads_samples_non.norm[,-1]
+colnames(tb16S_bacteria_OTUs_reads_samples_non.norm)<-c("reads_per_class","OTUs_per_class")
+tb16S_bacteria_OTUs_reads_samples_non.norm[1:5,1:2]
+
+tb16S_bacteria_OTUs_reads_samples_non.norm<-tb16S_bacteria_OTUs_reads_samples_non.norm[order(tb16S_bacteria_OTUs_reads_samples_non.norm$reads_per_class, tb16S_bacteria_OTUs_reads_samples_non.norm$OTUs_per_class, decreasing = T), c(1,2)]
+
+#add no. of samples per class
+tb16S_bacteria_OTUs_reads_samples_non.norm["samples_per_class"] <- NA
+tb16S_bacteria_OTUs_reads_samples_non.norm$samples_per_class<-c(117,117)
+
+#table without "heterotropic_bacteria":
+tb16S_bacteria_OTUs_reads_samples_non.norm <- tb16S_bacteria_OTUs_reads_samples_non.norm[-1,]
+```
+
+```{r OTUs_vs_reads_protists_relative_values_non.norm, echo=FALSE}
+
+tb16S_protists_OTUs_reads_samples_non.norm_rel_abund <- tb16S_protists_OTUs_reads_samples_non.norm
+
+tb16S_protists_OTUs_reads_samples_non.norm_rel_abund$reads_per_class<-(tb16S_protists_OTUs_reads_samples_non.norm_rel_abund$reads_per_class*100)/colSums(tb16S_protists_OTUs_reads_samples_non.norm)[1]
+tb16S_protists_OTUs_reads_samples_non.norm_rel_abund$OTUs_per_class<-(tb16S_protists_OTUs_reads_samples_non.norm_rel_abund$OTUs_per_class*100)/colSums(tb16S_protists_OTUs_reads_samples_non.norm)[2]
+tb16S_protists_OTUs_reads_samples_non.norm_rel_abund$samples_per_class<-(tb16S_protists_OTUs_reads_samples_non.norm_rel_abund$samples_per_class*100)/117
+
+colSums(tb16S_protists_OTUs_reads_samples_non.norm_rel_abund)
+tb16S_protists_OTUs_reads_samples_non.norm_rel_abund
+```
+
+OTUs per class vs. samples in which they occur - PROTISTS [PLOT DESCRIPTION]
+
+```{r stations_vs_OTUs_protists_16S_non.norm, echo=FALSE}
+otus_vs_samples_plot_protists <- ggplot(tb16S_protists_OTUs_reads_samples_non.norm_rel_abund, aes(samples_per_class,OTUs_per_class, label = rownames(tb16S_protists_OTUs_reads_samples_non.norm)))
+otus_vs_samples_plot_protists + geom_point() + geom_text(check_overlap = TRUE,hjust = -0.05, nudge_y = 0.05, size = 3) + scale_x_continuous(limits = c(0, 120), breaks=c(25,50,75,100)) + labs(title="[15] OTUs per class vs. samples in which they occur", x="samples (%)", y="OTUs (%)") + coord_trans(y = "log10")
+```
+
+Reads per class vs. OTUs per class - PROTISTS [PLOT DESCRIPTION]
+
+```{r OTUs_vs_reads_protists_16S_non.norm, echo=FALSE}
+otus_vs_samples_plot_protists <- ggplot(tb16S_protists_OTUs_reads_samples_non.norm_rel_abund, aes(OTUs_per_class, reads_per_class, label = rownames(tb16S_protists_OTUs_reads_samples_non.norm)))
+otus_vs_samples_plot_protists + geom_point() + geom_text(check_overlap = TRUE,hjust = -0.05, nudge_x = 0.05, size=3) + scale_x_continuous(limits = c(0, 58)) + labs(title="[16] Reads per class vs. OTUs per class", x="OTUs (%)", y="reads (%)") + coord_trans(y = "log10")
+```
+
+OTUs per class vs. samples in which they occur - PROTISTS vs. CYANOBACTERIA [PLOT DESCRIPTION]
+
+```{r merge_protists_and_bacteria_tb_non.norm, echo=FALSE}
+tb16S_protists_plus_bacteria_OTUs_reads_samples_non.norm<-rbind(tb16S_protists_OTUs_reads_samples_non.norm,tb16S_bacteria_OTUs_reads_samples_non.norm)
+```
+
+
+```{r OTUs_vs_reads_protists_plus_bacteria_relative_values_non.norm, echo=FALSE}
+
+tb16S_protists_plus_bacteria_OTUs_reads_samples_non.norm_rel_abund<-tb16S_protists_plus_bacteria_OTUs_reads_samples_non.norm
+
+tb16S_protists_plus_bacteria_OTUs_reads_samples_non.norm_rel_abund$reads_per_class<-(tb16S_protists_plus_bacteria_OTUs_reads_samples_non.norm_rel_abund$reads_per_class*100)/colSums(tb16S_protists_plus_bacteria_OTUs_reads_samples_non.norm)[1]
+
+tb16S_protists_plus_bacteria_OTUs_reads_samples_non.norm_rel_abund$OTUs_per_class<-(tb16S_protists_plus_bacteria_OTUs_reads_samples_non.norm_rel_abund$OTUs_per_class*100)/colSums(tb16S_protists_plus_bacteria_OTUs_reads_samples_non.norm)[2]
+
+tb16S_protists_plus_bacteria_OTUs_reads_samples_non.norm_rel_abund$samples_per_class<-(tb16S_protists_plus_bacteria_OTUs_reads_samples_non.norm_rel_abund$samples_per_class*100)/117
+
+colSums(tb16S_protists_plus_bacteria_OTUs_reads_samples_non.norm_rel_abund)
+tb16S_protists_plus_bacteria_OTUs_reads_samples_non.norm_rel_abund
+```
+
+```{r stations_vs_OTUs_protists_plus_bacteria_rel_abundance_non.norm, echo=FALSE}
+otus_vs_samples_plot_protists_plus_bacteria <- ggplot(tb16S_protists_plus_bacteria_OTUs_reads_samples_non.norm_rel_abund, aes(samples_per_class,OTUs_per_class, label = rownames(tb16S_protists_plus_bacteria_OTUs_reads_samples_non.norm_rel_abund)))
+otus_vs_samples_plot_protists_plus_bacteria + geom_point() + geom_text(check_overlap = TRUE,hjust = -0.05, nudge_y = 0.05, size = 3) + scale_x_continuous(limits = c(0, 120)) + labs(title="[17] OTUs per class vs. samples in which they occur", x="samples (%)", y="OTUs (%)") + coord_trans(y = "log10")
+```
+
+Reads per class vs. OTUs per class - PROTISTS vs CYANOBACTERIA [PLOT DESCRIPTION]
+
+```{r OTUs_vs_reads_protists_plus_bacteria_rel_abundance_non.norm, echo=FALSE}
+otus_vs_samples_plot_protists_plus_bacteria <- ggplot(tb16S_protists_plus_bacteria_OTUs_reads_samples_non.norm_rel_abund, aes(OTUs_per_class, reads_per_class, label = rownames(tb16S_protists_plus_bacteria_OTUs_reads_samples_non.norm_rel_abund)))
+otus_vs_samples_plot_protists_plus_bacteria + geom_point() + geom_text(check_overlap = TRUE,hjust = -0.05, nudge_x = 0.05, size=3) + scale_x_continuous(limits = c(0, 40)) + labs(title="[18] Reads per class vs. OTUs per class", x="OTUs (%)", y="reads (%)") + coord_trans(y = "log10") 
+```
