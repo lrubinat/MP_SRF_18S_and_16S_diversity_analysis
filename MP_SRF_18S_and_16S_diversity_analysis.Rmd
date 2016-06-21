@@ -698,7 +698,7 @@ tb18S_OTUs_reads_samples<-tb18S_OTUs_reads_samples[order(tb18S_OTUs_reads_sample
 
 #add no. of samples per class
 tb18S_OTUs_reads_samples["samples_per_class"] <- NA
-tb18S_OTUs_reads_samples$samples_per_class<-c(117,117,117,112,117,96,91,103,102,92,44,33,13,36,17,27,5)
+tb18S_OTUs_reads_samples$samples_per_class<-c(117,117,117,111,116,95,90,97,95,89,47,32,27,25,11,19,6)
 
 tb18S_OTUs_reads_samples
 ```
@@ -771,7 +771,7 @@ otus_vs_samples_plot + geom_point() + geom_text(check_overlap = TRUE,hjust = -0.
 
 ggplot(tb18S_OTUs_reads_samples_rel_abund) +
   geom_point(aes(samples_per_class,OTUs_per_class)) +
-  geom_text_repel(aes(samples_per_class,OTUs_per_class, label = rownames(tb18S_OTUs_reads_samples)), size=3, force = 3, box.padding = unit(0.10, "lines"), point.padding = unit(0.2, 'lines')) + scale_x_continuous(limits = c(0, 116), breaks=c(25,50,75,100)) + labs(title="[3.2] OTUs per class vs. samples in which they occur", x="MP-iTags-18S samples (%)", y="MP-iTags-18S OTUs (%)") + coord_trans(y = "log10")
+  geom_text_repel(aes(samples_per_class,OTUs_per_class, label = rownames(tb18S_OTUs_reads_samples)), size=4.5, force = 5, box.padding = unit(0.1, "lines"), point.padding = unit(0.2, 'lines')) + scale_x_continuous(limits = c(0, 116), breaks=c(25,50,75,100)) + labs(title="[3.2] OTUs per class vs. samples in which they occur", x="\nMP-iTags-18S samples (%)", y="MP-iTags-18S OTUs (%)\n") + coord_trans(y = "log10") + theme(axis.text=element_text(size=14), axis.title=element_text(size=16))
 ```
 
 Reads per class vs. OTUs per class [PLOT DESCRIPTION]

@@ -54,7 +54,7 @@ create_table_merging_#OTUs_#reads_#samples	[<-	$	$<-	c	class_summary_otus_per_cl
 stations_vs_OTUs	aes	c	coord_trans	geom_point	geom_text_repel	ggplot	labs	library	OTUs_per_class	rownames	samples_per_class	scale_x_continuous	tb18S_OTUs_reads_samples	unit
 OTUs_vs_reads	aes	c	geom_point	geom_text	ggplot	labs	OTUs_per_class	reads_per_class	rownames	scale_x_log10	scale_y_continuous	tb18S_OTUs_reads_samples
 OTUs_vs_reads_relative_values_18S	$	$<-	colSums	tb18S_OTUs_reads_samples
-stations_vs_OTUs_18S	aes	c	coord_trans	geom_point	geom_text	geom_text_repel	ggplot	labs	OTUs_per_class	rownames	samples_per_class	scale_x_continuous	tb18S_OTUs_reads_samples	tb18S_OTUs_reads_samples_rel_abund	unit
+stations_vs_OTUs_18S	aes	c	coord_trans	element_text	geom_point	geom_text	geom_text_repel	ggplot	labs	OTUs_per_class	rownames	samples_per_class	scale_x_continuous	tb18S_OTUs_reads_samples	tb18S_OTUs_reads_samples_rel_abund	theme	unit
 OTUs_vs_reads_18S	aes	c	coord_trans	geom_point	geom_text	geom_text_repel	ggplot	labs	OTUs_per_class	reads_per_class	rownames	scale_x_log10	tb18S_OTUs_reads_samples	tb18S_OTUs_reads_samples_rel_abund	unit
 merge_tables_non.norm_18S	[<-	$	$<-	as.character	as.numeric	dim	merge	order	rownames	rownames<-	sapply	strsplit	tb18_class	tb18_tax_occur_min8522
 select_phototrophs_non.norm_18S	!=	$	&	dim	tb18_min8522_tax_sorted	which
