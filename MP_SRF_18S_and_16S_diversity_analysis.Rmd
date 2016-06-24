@@ -800,7 +800,6 @@ ggplot(tb18S_OTUs_reads_samples_rel_abund) +
   geom_text_repel(aes(OTUs_per_class, reads_per_class, label = rownames(tb18S_OTUs_reads_samples)), size=4, force = 3, box.padding = unit(0.1, "lines"), point.padding = unit(0.02, 'lines')) + labs(title="[4.3] Reads per class vs. OTUs per class", x="\nMP-iTags-18S OTUs (%)", y="MP-iTags-18S reads (%)\n") + scale_x_log10(limits = c(-1,200), breaks = c(0,0.1,1,10,100)) + scale_y_log10(limits = c(-1,200), breaks = c(0,0.1,1,10,100))  + theme(axis.text=element_text(size=14), axis.title=element_text(size=16))
 ```
 
-    scale_y_continuous(limits = c(0, upper.lim), expand = c(0.01, 0)))
 
 
 ```{r reads_vs_samples_18S, echo=FALSE}
