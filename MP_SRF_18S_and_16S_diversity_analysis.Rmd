@@ -749,10 +749,7 @@ otus_vs_samples_plot + geom_point() + geom_text(check_overlap = TRUE,hjust = -0.
 
 ggplot(tb18S_OTUs_reads_samples) +
   geom_point(aes(OTUs_per_class,reads_per_class)) +
-  geom_text_repel(aes(OTUs_per_class,reads_per_class, label = rownames(tb18S_OTUs_reads_samples)), size=4, force = 8, box.padding = unit(0.1, "lines"), point.padding = unit(0.2, 'lines')) + scale_x_log10(limits = c(-1, 15000), breaks=c(0,1,10,100,1000,10000)) + scale_y_log10(limits = c(-1,150000), breaks = c(0,1,10,100,1000,10000,100000)) + labs(title="[2.2] Reads per class vs. OTUs per class", x="\nMP-iTags-18S OTUs", y="MP-iTags-18S reads\n") + theme(axis.text=element_text(size=14), axis.title=element_text(size=16))
-
-
-
+  geom_text_repel(aes(OTUs_per_class,reads_per_class, label = rownames(tb18S_OTUs_reads_samples)), size=4, force = 8, box.padding = unit(0.1, "lines"), point.padding = unit(0.2, 'lines')) + scale_x_log10(limits = c(-1, 15000), breaks=c(0,1,10,100,1000,10000)) + scale_y_log10(limits = c(-1,1000000), breaks = c(0,1,10,100,1000,10000,100000,1000000)) + labs(title="[2.2] Reads per class vs. OTUs per class", x="\nMP-iTags-18S OTUs", y="MP-iTags-18S reads\n") + theme(axis.text=element_text(size=14), axis.title=element_text(size=16))
 
 ```
 
@@ -1718,6 +1715,77 @@ tb16S_bacteria_OTUs_reads_samples$samples_per_class<-c(117,117)
 tb16S_bacteria_OTUs_reads_samples <- tb16S_bacteria_OTUs_reads_samples[-1,]
 ```
 
+```{r cyanobacteria_histogram, echo=TRUE}
+cyano_tb <- tb16_bacteria[which(tb16_bacteria$class_A != "heterotrophic_bacteria"),]
+
+class_summary_reads_per_class_cyano<-aggregate(rowSums(cyano_tb[1:117]), list(cyano_tb$class_B), sum)
+# count the different groups
+class_summary_otus_per_class_cyano<-aggregate(rowSums(cyano_tb[1:117]), list(cyano_tb$class_B), length)
+
+## READS PER CLASS ##
+attach(class_summary_reads_per_class_cyano)
+class_summary_reads_per_class_cyano_order<-class_summary_reads_per_class_cyano[order(-x),]
+detach(class_summary_reads_per_class_cyano)
+class_summary_reads_per_class_cyano_order
+
+#fix column names
+row.names(class_summary_reads_per_class_cyano_order)<-class_summary_reads_per_class_cyano_order[,1]
+class_summary_reads_per_class_cyano_order<-class_summary_reads_per_class_cyano_order[c(-1)]
+colnames(class_summary_reads_per_class_cyano_order)<-c("reads_per_class")
+
+
+## OTUs PER CLASS ##
+attach(class_summary_otus_per_class_cyano)
+class_summary_otus_per_class_cyano_order<-class_summary_otus_per_class_cyano[order(-x),]
+detach(class_summary_otus_per_class_cyano)
+class_summary_otus_per_class_cyano_order
+
+row.names(class_summary_otus_per_class_cyano_order)<-class_summary_otus_per_class_cyano_order[,1]
+class_summary_otus_per_class_cyano_order<-class_summary_otus_per_class_cyano_order[c(-1)]
+colnames(class_summary_otus_per_class_cyano_order)<-c("OTUs_per_class")
+
+
+# create_table_merging_#OTUs_#reads
+cyano_OTUs_reads <- merge(class_summary_reads_per_class_cyano_order, class_summary_otus_per_class_cyano_order, by="row.names")
+
+row.names(cyano_OTUs_reads)<-cyano_OTUs_reads[,1]
+cyano_OTUs_reads<-cyano_OTUs_reads[,-1]
+colnames(cyano_OTUs_reads)<-c("reads_per_class","OTUs_per_class")
+cyano_OTUs_reads[1:3,1:2]
+
+cyano_OTUs_reads<-cyano_OTUs_reads[order(cyano_OTUs_reads$reads_per_class, cyano_OTUs_reads$OTUs_per_class, decreasing = T), c(1,2)]
+cyano_OTUs_reads
+
+#compute relative values
+cyano_OTUs_reads_rel_abund <- cyano_OTUs_reads
+
+cyano_OTUs_reads_rel_abund$reads_per_class<-(cyano_OTUs_reads_rel_abund$reads_per_class*100)/colSums(cyano_OTUs_reads)[1]
+cyano_OTUs_reads_rel_abund$OTUs_per_class<-(cyano_OTUs_reads_rel_abund$OTUs_per_class*100)/colSums(cyano_OTUs_reads)[2]
+
+colSums(cyano_OTUs_reads_rel_abund)
+rownames(cyano_OTUs_reads_rel_abund) = c("Prochlorococcus", "Synechococcus", "Other cyanobacteria")
+cyano_OTUs_reads_rel_abund
+
+cyano_OTUs_reads_rel_abund["cyano_group"]<-NA
+cyano_OTUs_reads_rel_abund$cyano_group<-c("Prochlorococcus", "Synechococcus", "Other cyanobacteria")
+
+cyano_OTUs_reads_rel_abund2<-matrix()
+cyano_OTUs_reads_rel_abund2["group"]<-NA
+cyano_OTUs_reads_rel_abund2$group<-c("Prochlorococcus","Prochlorococcus","Synechococcus","Synechococcus","Other cyanobacteria","Other cyanobacteria")
+
+cyano_OTUs_reads_rel_abund2["value"]<-NA
+cyano_OTUs_reads_rel_abund2$group<-c(86.9843455,34.48276,12.5241948,17.24138,0.4914597,48.27586)
+
+cyano_OTUs_reads_rel_abund2["data"]<-NA
+cyano_OTUs_reads_rel_abund2$group<-c("% of reads", "% of OTUs","% of reads", "% of OTUs","% of reads", "% of OTUs")
+
+cyano_OTUs_reads_rel_abund2
+
+#ggplot2.histogram(data=cyano_OTUs_reads_rel_abund, xName='OTUs_per_class',
+#        groupName='cyano_group', legendPosition="top",
+#        faceting=TRUE, facetingVarNames="cyano_group",
+#        facetingDirection="horizontal") 
+```
 
 OTUs per class vs. samples in which they occur - PROTISTS [PLOT DESCRIPTION]
 
@@ -1750,13 +1818,9 @@ Reads per class vs. OTUs per class - PROTISTS vs CYANOBACTERIA [PLOT DESCRIPTION
 otus_vs_samples_plot_protists_plus_bacteria <- ggplot(tb16S_protists_plus_bacteria_OTUs_reads_samples, aes(OTUs_per_class, reads_per_class, label = rownames(tb16S_protists_plus_bacteria_OTUs_reads_samples)))
 otus_vs_samples_plot_protists_plus_bacteria + geom_point() + geom_text(check_overlap = TRUE,hjust = -0.05, nudge_x = 0.05, size=3) + scale_x_continuous(limits = c(0, 35)) + labs(title="[10] Reads per class vs. OTUs per class", x="OTUs", y="reads") + coord_trans(y = "log10")
 
-
 ggplot(tb16S_protists_plus_bacteria_OTUs_reads_samples) +
   geom_point(aes(OTUs_per_class,reads_per_class)) +
-  geom_text_repel(aes(OTUs_per_class,reads_per_class, label = rownames(tb16S_protists_plus_bacteria_OTUs_reads_samples)), size=4, force = 8, box.padding = unit(0.1, "lines"), point.padding = unit(0.2, 'lines')) + scale_x_log10(limits = c(-1,100), breaks=c(0,0.1,1,10,100)) + scale_y_log10(limits = c(-1,350000), breaks = c(0,0.1,1,10,100,1000,10000,100000)) + labs(title="[10.2] Reads per class vs. OTUs per class", x="\nMP-iTags-16S OTUs", y="MP-iTags-16S reads\n") + theme(axis.text=element_text(size=14), axis.title=element_text(size=16))
-
-
-
+  geom_text_repel(aes(OTUs_per_class,reads_per_class, label = rownames(tb16S_protists_plus_bacteria_OTUs_reads_samples)), size=4, force = 8, box.padding = unit(0.1, "lines"), point.padding = unit(0.2, 'lines')) + scale_x_log10(limits = c(-1,100), breaks=c(0,0.1,1,10,100)) + scale_y_log10(limits = c(-1,1000000), breaks = c(0,0.1,1,10,100,1000,10000,100000,1000000)) + labs(title="[10.2] Reads per class vs. OTUs per class", x="\nMP-iTags-16S OTUs", y="MP-iTags-16S reads\n") + theme(axis.text=element_text(size=14), axis.title=element_text(size=16))
 ```
 
 #### 2.6.1.2) Relative values
@@ -1823,8 +1887,6 @@ otus_vs_samples_plot_protists_plus_bacteria + geom_point() + geom_text(check_ove
 ggplot(tb16S_protists_plus_bacteria_OTUs_reads_samples_rel_abund) +
   geom_point(aes(OTUs_per_class, reads_per_class)) +
   geom_text_repel(aes(OTUs_per_class, reads_per_class, label = rownames(tb16S_protists_plus_bacteria_OTUs_reads_samples_rel_abund)), size=3, force = 0.5, box.padding = unit(0.10, "lines"), point.padding = unit(0.2, 'lines'))  + scale_x_continuous(limits = c(0, 40)) + labs(title="[14.2] Reads per class vs. OTUs per class", x="MP-iTags-16S OTUs (%)", y="MP-iTags-16S reads (%)") + coord_trans(y = "log10")
-
-
 
 ggplot(tb16S_protists_plus_bacteria_OTUs_reads_samples_rel_abund) +
   geom_point(aes(OTUs_per_class, reads_per_class)) +
