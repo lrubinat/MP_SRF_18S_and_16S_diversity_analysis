@@ -1769,22 +1769,17 @@ cyano_OTUs_reads_rel_abund
 cyano_OTUs_reads_rel_abund["cyano_group"]<-NA
 cyano_OTUs_reads_rel_abund$cyano_group<-c("Prochlorococcus", "Synechococcus", "Other cyanobacteria")
 
-cyano_OTUs_reads_rel_abund2<-matrix()
-cyano_OTUs_reads_rel_abund2["group"]<-NA
-cyano_OTUs_reads_rel_abund2$group<-c("Prochlorococcus","Prochlorococcus","Synechococcus","Synechococcus","Other cyanobacteria","Other cyanobacteria")
-
-cyano_OTUs_reads_rel_abund2["value"]<-NA
-cyano_OTUs_reads_rel_abund2$group<-c(86.9843455,34.48276,12.5241948,17.24138,0.4914597,48.27586)
-
-cyano_OTUs_reads_rel_abund2["data"]<-NA
-cyano_OTUs_reads_rel_abund2$group<-c("% of reads", "% of OTUs","% of reads", "% of OTUs","% of reads", "% of OTUs")
-
+cyano_OTUs_reads_rel_abund2<-read.table("/home/laura/Documents/TFM/home/data/MALASPINA/Malaspina_16S_Surface/table_with_BLAST/cyano_histograms_data4.txt", head=TRUE)
 cyano_OTUs_reads_rel_abund2
 
-#ggplot2.histogram(data=cyano_OTUs_reads_rel_abund, xName='OTUs_per_class',
-#        groupName='cyano_group', legendPosition="top",
-#        faceting=TRUE, facetingVarNames="cyano_group",
-#        facetingDirection="horizontal") 
+ggplot(cyano_OTUs_reads_rel_abund2, aes(x=group, y=value, fill=data)) + 
+  geom_bar(position="dodge", stat="identity") +
+  scale_y_continuous(limits=c(-1,100), breaks=c(25,50,75,100)) +
+  scale_fill_manual(values=c("#000000", "#556670")) +
+  labs(x="", y="% \n") + 
+  theme(axis.text=element_text(size=14), axis.title=element_text(size=16)) + 
+  theme(legend.title = element_blank(), legend.position=c(0.85,0.85), legend.text=element_text(size=14)) +
+  theme(axis.title.y = element_text(size = rel(1.5), angle = 0, vjust=0.97))
 ```
 
 OTUs per class vs. samples in which they occur - PROTISTS [PLOT DESCRIPTION]
